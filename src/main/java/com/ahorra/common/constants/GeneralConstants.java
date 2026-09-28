@@ -9,9 +9,7 @@ public class GeneralConstants {
 
     public static final String WIPE_CONFIRMATION = "WIPE-EVERYTHING";
 
-    public static final int MAX_PIN_CHANGE_ATTEMPTS = 3;
 
-    public static final int PIN_CHANGE_LOCK_MINUTES = 15;
 
     public static final int RANDOM_STRING_LENGTH = 12;
 
@@ -37,7 +35,6 @@ public class GeneralConstants {
 
     public static final String PASSWORD_RESET_COOLDOWN_KEY_PREFIX = "password-reset:otp-cooldown:";
 
-    public static final String PIN_RESET_COOLDOWN_KEY_PREFIX = "pin-reset:otp-cooldown:";
 
     public static final String GENERIC_REQUEST_MESSAGE = "If an account is associated with this phone number, a verification code has been sent.";
 

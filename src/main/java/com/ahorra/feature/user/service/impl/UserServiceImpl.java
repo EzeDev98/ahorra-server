@@ -4,7 +4,6 @@ import com.ahorra.client.dto.request.RegisterRequest;
 import com.ahorra.client.dto.response.InternalAuthApiResponse;
 import com.ahorra.client.dto.response.RegisterResponse;
 import com.ahorra.client.service.InternalAuthClient;
-import com.ahorra.common.exception.InternalAuthRegistrationFailedException;
 import com.ahorra.common.exception.RegistrationException;
 import com.ahorra.common.exception.UserAlreadyExistsException;
 import com.ahorra.common.util.UniqueValueGeneratorService;
@@ -78,7 +77,14 @@ public class UserServiceImpl implements UserService {
         try {
             User user = createUser(request, response.getInternalAuthUserId());
             return new UserRegistrationResponse(user.getUsername(), HttpServletResponse.SC_CREATED, "User registered successfully. Check your Mailbox or SMS for the verification code.");
-        } catch (InternalAuthRegistrationFailedException ex) {
+        } catch (RuntimeException ex) {
+            // Anything that fails here happens AFTER internal-auth-server has
+            // already created the account and sent its verification OTP - if
+            // this isn't rolled back, the caller sees an error while a live,
+            // unusable account (with no local User row) sits on the other
+            // side. Every local-side failure gets this treatment now, not
+            // just the one exception type this used to be scoped to.
+            log.error("Local user creation failed after internal-auth-server registration succeeded (internalAuthUserId={}) - rolling back", response.getInternalAuthUserId(), ex);
             authClient.deleteUser(response.getInternalAuthUserId());
             throw new RegistrationException("Registration failed, all changes have been rolled back: " + ex.getMessage());
         }

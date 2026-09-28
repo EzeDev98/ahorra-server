@@ -65,6 +65,8 @@ public class WebSecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/refresh-token").permitAll()
 
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+
                         .requestMatchers(HttpMethod.POST, "/api/v1/password-reset/request").permitAll()
 
                         .requestMatchers(HttpMethod.POST, "/api/v1/password-reset/verify-otp").permitAll()

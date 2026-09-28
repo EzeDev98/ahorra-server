@@ -134,7 +134,7 @@ public class InternalAuthClient {
                 .body(new ParameterizedTypeReference<InternalAuthApiResponse<LoginResponse>>() {});
     }
 
-    public InternalAuthApiResponse<ActivationResponse> verifyPhone(VerifyPhoneRequest request) {
+    public InternalAuthApiResponse<ActivationResponse> verifyPhone(VerifyOtpRequest request) {
         return restClient.post()
                 .uri("/auth/verify-phone")
                 .header(HttpHeaders.AUTHORIZATION, basicAuthHeader)
@@ -214,7 +214,7 @@ public class InternalAuthClient {
     public void deleteUser(String internalAuthUserId) {
         restClient.delete()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/user")
+                        .path("/users")
                         .queryParam("internalAuthUserId", internalAuthUserId)
                         .build())
                 .retrieve()

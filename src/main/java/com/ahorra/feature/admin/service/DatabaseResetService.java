@@ -3,8 +3,6 @@ package com.ahorra.feature.admin.service;
 import com.ahorra.client.dto.response.InternalAuthApiResponse;
 import com.ahorra.client.dto.response.TenantWipeResponse;
 import com.ahorra.client.service.InternalAuthClient;
-import com.ahorra.feature.pinreset.repository.PinResetOtpRepository;
-import com.ahorra.feature.pinreset.repository.PinResetTokenRepository;
 import com.ahorra.feature.session.repository.UserSessionRepository;
 import com.ahorra.feature.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -51,8 +49,6 @@ import java.util.Map;
 public class DatabaseResetService {
 
     private final UserSessionRepository userSessionRepository;
-    private final PinResetOtpRepository pinResetOtpRepository;
-    private final PinResetTokenRepository pinResetTokenRepository;
     private final UserRepository userRepository;
 
     private final InternalAuthClient authClient;
@@ -72,15 +68,11 @@ public class DatabaseResetService {
     public ResetResult wipeDatabase() {
         Map<String, Long> counts = new LinkedHashMap<>();
         counts.put("userSessions", userSessionRepository.count());
-        counts.put("pinResetOtps", pinResetOtpRepository.count());
-        counts.put("pinResetTokens", pinResetTokenRepository.count());
         counts.put("users", userRepository.count());
 
         log.warn("[Reset] Wiping database. ");
 
         userSessionRepository.deleteAllInBatch();
-        pinResetOtpRepository.deleteAllInBatch();
-        pinResetTokenRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
 
         log.warn("[Reset] SyncPoint database rows cleared.");

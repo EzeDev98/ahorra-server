@@ -1,5 +1,7 @@
-application.properties
-pom.xml
-HELP.md
-mvnw
-mvnw.cmd
+target/
+.mvn/wrapper/maven-wrapper.jar
+.idea/
+*.iml
+.vscode/
+.DS_Store
+application-local.properties

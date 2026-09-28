@@ -1,4 +1,4 @@
-package com.ahorra.common.reset.dto;
+package com.ahorra.client.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,7 +9,6 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class VerifyOtpRequest {
+public class ResendPhoneVerificationRequest {
     private String phoneNumber;
-    private String otp;
 }
