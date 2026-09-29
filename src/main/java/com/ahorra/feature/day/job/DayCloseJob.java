@@ -1,6 +1,7 @@
 package com.ahorra.feature.day.job;
 
 import com.ahorra.feature.day.service.DayCloseService;
+import com.ahorra.feature.report.service.DailyReportService;
 import com.ahorra.feature.user.model.User;
 import com.ahorra.feature.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class DayCloseJob {
 
     private final UserRepository userRepository;
     private final DayCloseService dayCloseService;
+    private final DailyReportService dailyReportService;
 
     @Value("${app.timezone:Africa/Lagos}")
     private String timezone;
@@ -35,6 +37,7 @@ public class DayCloseJob {
         for (User user : userRepository.findAll()) {
             try {
                 dayCloseService.catchUp(user.getId(), today);
+                dailyReportService.generateMissing(user.getId());
             } catch (RuntimeException ex) {
                 log.error("Day-close check failed for user {}", user.getId(), ex);
             }
