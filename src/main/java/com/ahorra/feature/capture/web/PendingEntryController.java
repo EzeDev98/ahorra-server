@@ -4,6 +4,7 @@ import com.ahorra.feature.capture.dto.ConfirmRequest;
 import com.ahorra.feature.capture.dto.PendingEntryResponse;
 import com.ahorra.feature.capture.service.PendingEntryService;
 import com.ahorra.feature.user.service.impl.CurrentUserService;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class PendingEntryController {
 
     @PostMapping("/entries/pending/{id}/confirm")
     public ResponseEntity<PendingEntryResponse> confirm(@PathVariable Long id,
-                                                        @RequestBody(required = false) ConfirmRequest request) {
+                                                        @Valid @RequestBody(required = false) ConfirmRequest request) {
         Long userId = currentUserService.getCurrentUser().getId();
         return ResponseEntity.ok(pendingEntryService.confirm(userId, id, request));
     }

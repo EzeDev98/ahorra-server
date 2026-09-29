@@ -4,6 +4,7 @@ import com.ahorra.feature.income.dto.IncomeRequest;
 import com.ahorra.feature.income.dto.IncomeResponse;
 import com.ahorra.feature.income.service.IncomeService;
 import com.ahorra.feature.user.service.impl.CurrentUserService;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +28,7 @@ public class IncomeController {
     }
 
     @PutMapping("/income")
-    public ResponseEntity<IncomeResponse> setIncome(@RequestBody IncomeRequest request) {
+    public ResponseEntity<IncomeResponse> setIncome(@Valid @RequestBody IncomeRequest request) {
         Long userId = currentUserService.getCurrentUser().getId();
         return ResponseEntity.ok(incomeService.setIncome(userId, request));
     }

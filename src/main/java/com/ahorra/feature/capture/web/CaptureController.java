@@ -4,6 +4,7 @@ import com.ahorra.feature.capture.dto.CaptureRequest;
 import com.ahorra.feature.capture.dto.PendingEntryResponse;
 import com.ahorra.feature.capture.service.CaptureService;
 import com.ahorra.feature.user.service.impl.CurrentUserService;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +20,7 @@ public class CaptureController {
     private final CurrentUserService currentUserService;
 
     @PostMapping("/entries/capture")
-    public ResponseEntity<PendingEntryResponse> capture(@RequestBody CaptureRequest request) {
+    public ResponseEntity<PendingEntryResponse> capture(@Valid @RequestBody CaptureRequest request) {
         Long userId = currentUserService.getCurrentUser().getId();
         return ResponseEntity.ok(captureService.capture(userId, request));
     }
