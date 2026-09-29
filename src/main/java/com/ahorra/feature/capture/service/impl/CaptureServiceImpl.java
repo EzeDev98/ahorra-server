@@ -2,10 +2,12 @@ package com.ahorra.feature.capture.service.impl;
 
 import com.ahorra.common.exception.BadRequestException;
 import com.ahorra.feature.accounting.enums.AccountType;
+import com.ahorra.feature.accounting.dto.LookupItem;
 import com.ahorra.feature.accounting.model.Account;
 import com.ahorra.feature.accounting.model.Category;
 import com.ahorra.feature.accounting.repository.AccountRepository;
 import com.ahorra.feature.accounting.repository.CategoryRepository;
+import com.ahorra.feature.accounting.service.LookupCacheService;
 import com.ahorra.feature.capture.dto.CaptureRequest;
 import com.ahorra.feature.capture.dto.ParsedEntry;
 import com.ahorra.feature.capture.dto.ParsedEntryProposal;
@@ -53,6 +55,7 @@ public class CaptureServiceImpl implements CaptureService {
     private final PendingEntryRepository pendingEntryRepository;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
+    private final LookupCacheService lookupCache;
     private final EntryParser entryParser;
     private final ParsedEntryValidator validator;
     private final DayGateService dayGateService;
@@ -62,6 +65,7 @@ public class CaptureServiceImpl implements CaptureService {
                               PendingEntryRepository pendingEntryRepository,
                               AccountRepository accountRepository,
                               CategoryRepository categoryRepository,
+                              LookupCacheService lookupCache,
                               EntryParser entryParser,
                               ParsedEntryValidator validator,
                               DayGateService dayGateService,
@@ -70,6 +74,7 @@ public class CaptureServiceImpl implements CaptureService {
         this.pendingEntryRepository = pendingEntryRepository;
         this.accountRepository = accountRepository;
         this.categoryRepository = categoryRepository;
+        this.lookupCache = lookupCache;
         this.entryParser = entryParser;
         this.validator = validator;
         this.dayGateService = dayGateService;
@@ -109,16 +114,14 @@ public class CaptureServiceImpl implements CaptureService {
         // 3. Parse + validate + stage. Any failure is recorded on the raw entry.
         try {
             LocalDate today = LocalDate.now(zone);
-            List<Account> accounts = accountRepository.findAllByUserIdAndActiveTrue(userId).stream()
-                    .filter(a -> a.getType() == AccountType.ASSET)
-                    .toList();
-            List<Category> categories = categoryRepository.findAllByUserIdAndActiveTrue(userId);
+            List<LookupItem> accounts = lookupCache.captureAccounts(userId);
+            List<LookupItem> categories = lookupCache.categories(userId);
 
             ParsedEntry parsed = entryParser.parse(new ParseContext(
                     raw.getRawText(),
                     today,
-                    accounts.stream().map(Account::getName).toList(),
-                    categories.stream().map(Category::getName).toList()));
+                    accounts.stream().map(LookupItem::name).toList(),
+                    categories.stream().map(LookupItem::name).toList()));
 
             ParsedEntryProposal proposal = validator.validate(raw.getId(), parsed, today, accounts, categories);
             PendingEntry pending = buildPending(userId, proposal);

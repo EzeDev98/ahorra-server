@@ -2,8 +2,7 @@ package com.ahorra.feature.capture.service.impl;
 
 import com.ahorra.common.exception.BadRequestException;
 import com.ahorra.common.money.MoneyUtils;
-import com.ahorra.feature.accounting.model.Account;
-import com.ahorra.feature.accounting.model.Category;
+import com.ahorra.feature.accounting.dto.LookupItem;
 import com.ahorra.feature.capture.dto.ParsedEntry;
 import com.ahorra.feature.capture.dto.ParsedEntryProposal;
 import com.ahorra.feature.capture.dto.ParsedItem;
@@ -30,16 +29,16 @@ public class ParsedEntryValidator {
     private static final BigDecimal MAX_AMOUNT = new BigDecimal("1000000000000");
 
     public ParsedEntryProposal validate(Long rawEntryId, ParsedEntry parsed, LocalDate today,
-                                        List<Account> accounts, List<Category> categories) {
+                                        List<LookupItem> accounts, List<LookupItem> categories) {
         FlowDirection flow = parseFlow(parsed.flow());
         List<ParsedItem> items = validateItems(parsed.items());
         BigDecimal total = items.stream().map(ParsedItem::amount).reduce(BigDecimal.ZERO, MoneyUtils::add);
 
-        Category category = parsed.categoryName() == null ? null : categories.stream()
-                .filter(c -> c.getName().trim().equalsIgnoreCase(parsed.categoryName()))
+        LookupItem category = parsed.categoryName() == null ? null : categories.stream()
+                .filter(c -> c.name().trim().equalsIgnoreCase(parsed.categoryName()))
                 .findFirst().orElse(null);
-        Account account = parsed.accountName() == null ? null : accounts.stream()
-                .filter(a -> a.getName().trim().equalsIgnoreCase(parsed.accountName()))
+        LookupItem account = parsed.accountName() == null ? null : accounts.stream()
+                .filter(a -> a.name().trim().equalsIgnoreCase(parsed.accountName()))
                 .findFirst().orElse(null);
 
         return new ParsedEntryProposal(
@@ -47,10 +46,10 @@ public class ParsedEntryValidator {
                 flow,
                 resolveDate(parsed.entryDate(), today),
                 parsed.vendor(),
-                category == null ? null : category.getId(),
-                category == null ? null : category.getName(),
-                account == null ? null : account.getId(),
-                account == null ? null : account.getName(),
+                category == null ? null : category.id(),
+                category == null ? null : category.name(),
+                account == null ? null : account.id(),
+                account == null ? null : account.name(),
                 items,
                 total);
     }
