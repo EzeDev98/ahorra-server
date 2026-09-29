@@ -64,6 +64,13 @@ public class PendingEntry {
     @Column(name = "status", nullable = false, length = 20)
     private PendingStatus status = PendingStatus.PENDING;
 
+    /** The ledger entry this was posted as. Null until confirmed. */
+    @Column(name = "ledger_entry_id")
+    private Long ledgerEntryId;
+
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -71,6 +78,16 @@ public class PendingEntry {
     @OneToMany(mappedBy = "pendingEntry", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<PendingEntryItem> items = new ArrayList<>();
+
+    /** Moves PENDING to CONFIRMED (or EDITED when the user changed it first). One-way. */
+    public void markPosted(Long ledgerEntryId, boolean edited) {
+        if (status != PendingStatus.PENDING) {
+            throw new IllegalStateException("Only a PENDING entry can be confirmed");
+        }
+        this.status = edited ? PendingStatus.EDITED : PendingStatus.CONFIRMED;
+        this.ledgerEntryId = ledgerEntryId;
+        this.confirmedAt = LocalDateTime.now();
+    }
 
     public void addItem(PendingEntryItem item) {
         item.setPendingEntry(this);

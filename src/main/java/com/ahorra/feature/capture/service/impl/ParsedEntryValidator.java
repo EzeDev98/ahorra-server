@@ -63,7 +63,7 @@ public class ParsedEntryValidator {
         }
     }
 
-    private List<ParsedItem> validateItems(List<ParsedItem> items) {
+    public List<ParsedItem> validateItems(List<ParsedItem> items) {
         if (items == null || items.isEmpty()) {
             throw new BadRequestException("No amounts were found in that entry");
         }

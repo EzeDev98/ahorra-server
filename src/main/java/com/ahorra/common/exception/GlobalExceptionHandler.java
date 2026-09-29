@@ -50,7 +50,8 @@ public class GlobalExceptionHandler {
             Map.entry(OtpExpiredException.class, HttpStatus.BAD_REQUEST),
             Map.entry(UnauthorizedException.class, HttpStatus.UNAUTHORIZED),
             Map.entry(BadRequestException.class, HttpStatus.BAD_REQUEST),
-            Map.entry(EntityNotFoundException.class, HttpStatus.NOT_FOUND)
+            Map.entry(EntityNotFoundException.class, HttpStatus.NOT_FOUND),
+            Map.entry(DayGatedException.class, HttpStatus.LOCKED)
     );
 
     @ExceptionHandler(RuntimeException.class)

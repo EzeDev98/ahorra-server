@@ -22,6 +22,7 @@ import com.ahorra.feature.capture.parser.ParseContext;
 import com.ahorra.feature.capture.repository.PendingEntryRepository;
 import com.ahorra.feature.capture.repository.RawEntryRepository;
 import com.ahorra.feature.capture.service.CaptureService;
+import com.ahorra.feature.day.service.DayGateService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -54,6 +55,7 @@ public class CaptureServiceImpl implements CaptureService {
     private final CategoryRepository categoryRepository;
     private final EntryParser entryParser;
     private final ParsedEntryValidator validator;
+    private final DayGateService dayGateService;
     private final ZoneId zone;
 
     public CaptureServiceImpl(RawEntryRepository rawEntryRepository,
@@ -62,6 +64,7 @@ public class CaptureServiceImpl implements CaptureService {
                               CategoryRepository categoryRepository,
                               EntryParser entryParser,
                               ParsedEntryValidator validator,
+                              DayGateService dayGateService,
                               @Value("${app.timezone:Africa/Lagos}") String timezone) {
         this.rawEntryRepository = rawEntryRepository;
         this.pendingEntryRepository = pendingEntryRepository;
@@ -69,6 +72,7 @@ public class CaptureServiceImpl implements CaptureService {
         this.categoryRepository = categoryRepository;
         this.entryParser = entryParser;
         this.validator = validator;
+        this.dayGateService = dayGateService;
         this.zone = ZoneId.of(timezone);
     }
 
@@ -82,6 +86,9 @@ public class CaptureServiceImpl implements CaptureService {
             throw new BadRequestException("Entry is too long (max " + MAX_TEXT_LENGTH + " characters)");
         }
         String clientRequestId = normalizeClientRequestId(request.clientRequestId());
+
+        // Forced-resolution gate: unconfirmed past days (or past the evening cutoff) block new capture.
+        dayGateService.assertNotGated(userId);
 
         // 1. Persist exactly what the user said (or find it again on a retry).
         RawEntry raw = findOrCreateRaw(userId, request.source(), text, clientRequestId);
