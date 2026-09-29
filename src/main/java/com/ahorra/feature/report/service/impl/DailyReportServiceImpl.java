@@ -9,7 +9,7 @@ import com.ahorra.feature.accounting.repository.LedgerEntryRepository;
 import com.ahorra.feature.day.dto.DaySpend;
 import com.ahorra.feature.day.enums.DayStatus;
 import com.ahorra.feature.day.repository.DayStateRepository;
-import com.ahorra.feature.day.service.DailySpendService;
+import com.ahorra.feature.day.service.impl.DailySpendService;
 import com.ahorra.feature.income.dto.CategorySpendRow;
 import com.ahorra.feature.income.dto.VarianceResponse;
 import com.ahorra.feature.income.service.VarianceService;
@@ -23,10 +23,7 @@ import com.ahorra.feature.report.model.DailyReport;
 import com.ahorra.feature.report.model.DailyReportCategory;
 import com.ahorra.feature.report.repository.DailyReportRepository;
 import com.ahorra.feature.report.service.DailyReportService;
-import com.ahorra.feature.report.service.NarrativeGuard;
 import com.ahorra.feature.report.service.NarrativeWriter;
-import com.ahorra.feature.report.service.ReportFormat;
-import com.ahorra.feature.report.service.VerdictCalculator;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -44,6 +41,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.ahorra.common.constants.GeneralConstants.*;
+
 /**
  * Not @Transactional as a whole, on purpose: the model call is slow and must not
  * hold a database connection. Reads run normally and the final write runs in its
@@ -53,11 +52,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class DailyReportServiceImpl implements DailyReportService {
-
-    private static final String NO_ENTRIES_SUMMARY = "No entries logged today";
-    private static final int OBSERVATION_DAYS = 30;
-    private static final int MAX_BACKFILL_DAYS = 14;
-    private static final int MAX_INSIGHT_LENGTH = 500;
 
     private final DailyReportRepository reportRepository;
     private final DayStateRepository dayStateRepository;
@@ -145,10 +139,8 @@ public class DailyReportServiceImpl implements DailyReportService {
     }
 
     private ReportFacts buildFacts(Long userId, LocalDate day) {
-        List<CategorySpendRow> rows = ledgerEntryRepository.sumSpendByCategory(
-                userId, AccountType.EXPENSE, EntryDirection.DEBIT, day, day);
-        BigDecimal daySpend = rows.stream().map(CategorySpendRow::amount)
-                .reduce(BigDecimal.ZERO, MoneyUtils::add);
+        List<CategorySpendRow> rows = ledgerEntryRepository.sumSpendByCategory(userId, AccountType.EXPENSE, EntryDirection.DEBIT, day, day);
+        BigDecimal daySpend = rows.stream().map(CategorySpendRow::amount).reduce(BigDecimal.ZERO, MoneyUtils::add);
         int entryCount = (int) ledgerEntryRepository.countByUserIdAndEntryDate(userId, day);
         List<CategoryLine> dayLines = dayLines(rows, daySpend);
 
@@ -160,19 +152,17 @@ public class DailyReportServiceImpl implements DailyReportService {
         }
         ReportVerdict verdict = variance == null ? ReportVerdict.NO_INCOME_SET : verdictCalculator.verdict(variance);
 
-        List<DaySpend> history = dailySpendService.closedDaySpend(
-                userId, day.minusDays(OBSERVATION_DAYS), day.minusDays(1));
+        List<DaySpend> history = dailySpendService.closedDaySpend(userId, day.minusDays(OBSERVATION_DAYS), day.minusDays(1));
         int daysObserved = history.size();
         BigDecimal rollingAvg = daysObserved == 0 ? null : MoneyUtils.divide(
                 history.stream().map(DaySpend::spend).reduce(BigDecimal.ZERO, MoneyUtils::add),
                 BigDecimal.valueOf(daysObserved));
         boolean comparisonAvailable = daysObserved >= OBSERVATION_DAYS;
 
-        boolean goodDay = verdict == ReportVerdict.UNDER
-                && (!comparisonAvailable || MoneyUtils.isLessThan(daySpend, rollingAvg));
+        boolean goodDay = verdict == ReportVerdict.UNDER && (!comparisonAvailable || MoneyUtils.isLessThan(daySpend, rollingAvg));
 
         List<CategoryLine> periodLines = variance == null ? List.of() : variance.categories().stream()
-                .map(c -> new CategoryLine(c.categoryName(), c.amount(), c.shareOfSpendPercent(), c.attributedExcess()))
+                .map(categoryBreakdown -> new CategoryLine(categoryBreakdown.categoryName(), categoryBreakdown.amount(), categoryBreakdown.shareOfSpendPercent(), categoryBreakdown.attributedExcess()))
                 .toList();
 
         return new ReportFacts(
@@ -202,19 +192,15 @@ public class DailyReportServiceImpl implements DailyReportService {
                 .sorted(Comparator.comparing(CategorySpendRow::amount).reversed())
                 .map(row -> {
                     BigDecimal amount = MoneyUtils.normalize(row.amount());
-                    String name = row.categoryId() == null ? "Uncategorized"
-                            : names.getOrDefault(row.categoryId(), "Uncategorized");
-                    BigDecimal share = MoneyUtils.isPositive(daySpend)
-                            ? MoneyUtils.divide(MoneyUtils.multiply(amount, new BigDecimal("100")), daySpend)
-                            : MoneyUtils.normalize(BigDecimal.ZERO);
+                    String name = row.categoryId() == null ? "Uncategorized" : names.getOrDefault(row.categoryId(), "Uncategorized");
+                    BigDecimal share = MoneyUtils.isPositive(daySpend) ? MoneyUtils.divide(MoneyUtils.multiply(amount, new BigDecimal("100")), daySpend) : MoneyUtils.normalize(BigDecimal.ZERO);
                     return new CategoryLine(name, amount, share, null);
                 })
                 .toList();
     }
 
     /** One deterministic line: the biggest driver of the overspend if over, otherwise the day's biggest category. */
-    private String buildInsight(VarianceResponse variance, List<CategoryLine> periodLines,
-                                List<CategoryLine> dayLines, BigDecimal daySpend) {
+    private String buildInsight(VarianceResponse variance, List<CategoryLine> periodLines, List<CategoryLine> dayLines, BigDecimal daySpend) {
         if (variance != null && MoneyUtils.isPositive(variance.variance()) && !periodLines.isEmpty()) {
             CategoryLine top = periodLines.get(0);
             if (MoneyUtils.isPositive(top.attributedExcess())) {
@@ -225,8 +211,7 @@ public class DailyReportServiceImpl implements DailyReportService {
         }
         if (MoneyUtils.isPositive(daySpend) && !dayLines.isEmpty()) {
             CategoryLine top = dayLines.get(0);
-            return truncate(top.name() + " was " + ReportFormat.percent(top.sharePercent())
-                    + " of the day's spending.", MAX_INSIGHT_LENGTH);
+            return truncate(top.name() + " was " + ReportFormat.percent(top.sharePercent()) + " of the day's spending.", MAX_INSIGHT_LENGTH);
         }
         return null;
     }

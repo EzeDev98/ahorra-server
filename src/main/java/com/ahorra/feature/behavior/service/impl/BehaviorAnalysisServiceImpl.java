@@ -21,7 +21,7 @@ import com.ahorra.feature.behavior.repository.BehaviorSpendRepository;
 import com.ahorra.feature.behavior.repository.DetectedHabitRepository;
 import com.ahorra.feature.behavior.service.BehaviorAnalysisService;
 import com.ahorra.feature.day.dto.DaySpend;
-import com.ahorra.feature.day.service.DailySpendService;
+import com.ahorra.feature.day.service.impl.DailySpendService;
 import com.ahorra.feature.accounting.model.IncomeHistory;
 import com.ahorra.feature.accounting.repository.IncomeHistoryRepository;
 import org.springframework.stereotype.Service;
@@ -41,13 +41,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.ahorra.common.constants.GeneralConstants.*;
+
 @Service
 public class BehaviorAnalysisServiceImpl implements BehaviorAnalysisService {
-
-    private static final int[] WINDOWS = {7, 30, 90};
-    private static final int MAX_WINDOW = 90;
-    private static final int HABIT_WINDOW = 56;
-    private static final String UNCATEGORIZED = "Uncategorized";
 
     private final DailySpendService dailySpendService;
     private final BehaviorSpendRepository behaviorSpendRepository;
@@ -89,8 +86,7 @@ public class BehaviorAnalysisServiceImpl implements BehaviorAnalysisService {
         }
 
         Map<Long, Map<LocalDate, BigDecimal>> byCategory = new HashMap<>();
-        for (CategoryDaySpend row : behaviorSpendRepository.sumSpendByDayAndCategory(
-                userId, AccountType.EXPENSE, EntryDirection.DEBIT, from, asOf)) {
+        for (CategoryDaySpend row : behaviorSpendRepository.sumSpendByDayAndCategory(userId, AccountType.EXPENSE, EntryDirection.DEBIT, from, asOf)) {
             long key = row.categoryId() == null ? BehaviorScope.UNCATEGORIZED : row.categoryId();
             byCategory.computeIfAbsent(key, k -> new HashMap<>())
                     .merge(row.day(), row.amount(), BigDecimal::add);
@@ -100,7 +96,7 @@ public class BehaviorAnalysisServiceImpl implements BehaviorAnalysisService {
         Map<Long, List<DaySpend>> series = new LinkedHashMap<>();
         series.put(BehaviorScope.TOTAL, closed);
         byCategory.forEach((key, perDay) -> series.put(key, closed.stream()
-                .map(d -> new DaySpend(d.day(), perDay.getOrDefault(d.day(), BigDecimal.ZERO)))
+                .map(daySpend -> new DaySpend(daySpend.day(), perDay.getOrDefault(daySpend.day(), BigDecimal.ZERO)))
                 .toList()));
 
         int daysObserved = closed.size();
@@ -108,14 +104,13 @@ public class BehaviorAnalysisServiceImpl implements BehaviorAnalysisService {
         updateHabits(userId, series, asOf);
     }
 
-    private void updateBaselines(Long userId, long categoryId, List<DaySpend> list,
-                                 LocalDate asOf, int daysObserved) {
+    private void updateBaselines(Long userId, long categoryId, List<DaySpend> list, LocalDate asOf, int daysObserved) {
         BigDecimal confidence = baselineCalculator.confidence(daysObserved);
         for (int window : WINDOWS) {
             LocalDate windowStart = asOf.minusDays(window - 1L);
             for (DayType dayType : DayType.values()) {
                 List<BigDecimal> values = list.stream()
-                        .filter(d -> !d.day().isBefore(windowStart) && dayType.matches(d.day()))
+                        .filter(daySpend -> !daySpend.day().isBefore(windowStart) && dayType.matches(daySpend.day()))
                         .map(DaySpend::spend)
                         .toList();
                 if (values.isEmpty()) {
@@ -131,7 +126,7 @@ public class BehaviorAnalysisServiceImpl implements BehaviorAnalysisService {
                 row.setDayType(dayType);
                 row.setMeanAmount(BaselineCalculator.money(stats.mean()));
                 row.setStdDev(BaselineCalculator.money(stats.stdDev()));
-                row.setSampleDays(stats.n());
+                row.setSampleDays(stats.sampleSize());
                 row.setConfidence(confidence);
                 row.setComputedThrough(asOf);
                 baselineRepository.save(row);
@@ -141,24 +136,21 @@ public class BehaviorAnalysisServiceImpl implements BehaviorAnalysisService {
 
     private void updateHabits(Long userId, Map<Long, List<DaySpend>> series, LocalDate asOf) {
         LocalDate habitStart = asOf.minusDays(HABIT_WINDOW - 1L);
-        Set<Long> realIds = series.keySet().stream().filter(k -> k > 0).collect(Collectors.toSet());
-        Map<Long, String> names = realIds.isEmpty() ? Map.of()
-                : categoryRepository.findAllById(realIds).stream()
-                .collect(Collectors.toMap(Category::getId, Category::getName));
+        Set<Long> realIds = series.keySet().stream().filter(key -> key > 0).collect(Collectors.toSet());
+        Map<Long, String> names = realIds.isEmpty() ? Map.of() : categoryRepository.findAllById(realIds).stream().collect(Collectors.toMap(Category::getId, Category::getName));
 
         Set<Long> detected = new HashSet<>();
         series.forEach((key, list) -> {
             if (key == BehaviorScope.TOTAL) {
                 return;
             }
-            List<DaySpend> recent = list.stream().filter(d -> !d.day().isBefore(habitStart)).toList();
+            List<DaySpend> recent = list.stream().filter(daySpend -> !daySpend.day().isBefore(habitStart)).toList();
             Optional<HabitSignal> signal = habitDetector.detect(recent);
             if (signal.isEmpty()) {
                 return;
             }
             detected.add(key);
-            String name = key == BehaviorScope.UNCATEGORIZED ? UNCATEGORIZED
-                    : names.getOrDefault(key, UNCATEGORIZED);
+            String name = key == BehaviorScope.UNCATEGORIZED ? UNCATEGORIZED : names.getOrDefault(key, UNCATEGORIZED);
             saveHabit(userId, key, name, signal.get());
         });
 
@@ -171,22 +163,21 @@ public class BehaviorAnalysisServiceImpl implements BehaviorAnalysisService {
         }
     }
 
-    private void saveHabit(Long userId, long categoryId, String name, HabitSignal s) {
+    private void saveHabit(Long userId, long categoryId, String name, HabitSignal signal) {
         DetectedHabit habit = habitRepository.findByUserIdAndCategoryId(userId, categoryId)
                 .orElseGet(() -> {
                     DetectedHabit created = new DetectedHabit();
                     created.setUserId(userId);
                     created.setCategoryId(categoryId);
-                    created.setFirstObserved(s.firstObserved());
+                    created.setFirstObserved(signal.firstObserved());
                     return created;
                 });
-        habit.setDescription(String.format(Locale.US, "%s: about %.1f times a week, averaging \u20A6%,.0f",
-                name, s.frequencyPerWeek().doubleValue(), s.avgAmount().doubleValue()));
-        habit.setLastObserved(s.lastObserved());
-        habit.setFrequencyPerWeek(s.frequencyPerWeek());
-        habit.setAvgAmount(s.avgAmount());
-        habit.setTrendDirection(s.trend());
-        habit.setConfidence(s.confidence());
+        habit.setDescription(String.format(Locale.US, "%s: about %.1f times a week, averaging \u20A6%,.0f", name, signal.frequencyPerWeek().doubleValue(), signal.avgAmount().doubleValue()));
+        habit.setLastObserved(signal.lastObserved());
+        habit.setFrequencyPerWeek(signal.frequencyPerWeek());
+        habit.setAvgAmount(signal.avgAmount());
+        habit.setTrendDirection(signal.trend());
+        habit.setConfidence(signal.confidence());
         habit.setStatus(HabitStatus.ACTIVE);
         habitRepository.save(habit);
     }
@@ -194,38 +185,41 @@ public class BehaviorAnalysisServiceImpl implements BehaviorAnalysisService {
     @Override
     @Transactional(readOnly = true)
     public Optional<TrendResult> trend(Long userId, LocalDate asOf) {
-        Map<LocalDate, BigDecimal> byDay = dailySpendService
+        Map<LocalDate, BigDecimal> spendByDay = dailySpendService
                 .closedDaySpend(userId, asOf.minusDays(55), asOf).stream()
                 .collect(Collectors.toMap(DaySpend::day, DaySpend::spend));
 
-        List<Double> ratios = new ArrayList<>();
-        for (int k = 7; k >= 0; k--) {
-            LocalDate end = asOf.minusDays(7L * k);
-            LocalDate start = end.minusDays(6);
-            BigDecimal sum = BigDecimal.ZERO;
-            boolean complete = true;
-            for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
-                BigDecimal v = byDay.get(d);
-                if (v == null) {
-                    complete = false;
+        List<Double> weeklyRatioPercents = new ArrayList<>();
+        for (int weeksAgo = 7; weeksAgo >= 0; weeksAgo--) {
+            LocalDate weekEnd = asOf.minusDays(7L * weeksAgo);
+            LocalDate weekStart = weekEnd.minusDays(6);
+
+            BigDecimal weekSpend = BigDecimal.ZERO;
+            boolean weekHasAllDays = true;
+            for (LocalDate date = weekStart; !date.isAfter(weekEnd); date = date.plusDays(1)) {
+                BigDecimal daySpend = spendByDay.get(date);
+                if (daySpend == null) {
+                    weekHasAllDays = false;
                     break;
                 }
-                sum = sum.add(v);
+                weekSpend = weekSpend.add(daySpend);
             }
-            if (!complete) {
+            if (!weekHasAllDays) {
                 continue;
             }
-            Optional<IncomeHistory> income = incomeHistoryRepository.findActiveOn(userId, end);
-            if (income.isEmpty()) {
+
+            Optional<IncomeHistory> incomeHistory = incomeHistoryRepository.findActiveOn(userId, weekEnd);
+            if (incomeHistory.isEmpty()) {
                 continue;
             }
-            double weeklyBaseline = weeklyIncomeBaseline(income.get());
-            if (weeklyBaseline <= 0) {
+            double weeklyBaselineAmount = weeklyIncomeBaseline(incomeHistory.get());
+            if (weeklyBaselineAmount <= 0) {
                 continue;
             }
-            ratios.add(sum.doubleValue() / weeklyBaseline * 100.0);
+
+            weeklyRatioPercents.add(weekSpend.doubleValue() / weeklyBaselineAmount * 100.0);
         }
-        return trendAnalyzer.analyze(ratios);
+        return trendAnalyzer.analyze(weeklyRatioPercents);
     }
 
     /** The lower-bound income for a period, scaled to one week. */

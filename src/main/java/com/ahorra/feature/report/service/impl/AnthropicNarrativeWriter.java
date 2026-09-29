@@ -5,7 +5,6 @@ import com.ahorra.feature.report.dto.CategoryLine;
 import com.ahorra.feature.report.dto.ReportFacts;
 import com.ahorra.feature.report.enums.ReportVerdict;
 import com.ahorra.feature.report.service.NarrativeWriter;
-import com.ahorra.feature.report.service.ReportFormat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -87,8 +86,7 @@ public class AnthropicNarrativeWriter implements NarrativeWriter {
 
         ResponseEntity<String> response;
         try {
-            response = restTemplate.exchange(baseUrl + "/v1/messages", HttpMethod.POST,
-                    new HttpEntity<>(body.toString(), headers), String.class);
+            response = restTemplate.exchange(baseUrl + "/v1/messages", HttpMethod.POST, new HttpEntity<>(body.toString(), headers), String.class);
         } catch (RestClientException ex) {
             log.error("Anthropic narrative call failed: {}", ex.getMessage());
             throw new InternalServerErrorException("Could not reach the narrative writer.", ex);
@@ -110,35 +108,35 @@ public class AnthropicNarrativeWriter implements NarrativeWriter {
         throw new InternalServerErrorException("The narrative writer returned no text.", null);
     }
 
-    private ObjectNode factsJson(ReportFacts f) {
-        ObjectNode n = objectMapper.createObjectNode();
-        n.put("entriesToday", f.entryCount());
-        n.put("spendToday", ReportFormat.money(f.daySpend()));
+    private ObjectNode factsJson(ReportFacts facts) {
+        ObjectNode nodes = objectMapper.createObjectNode();
+        nodes.put("entriesToday", facts.entryCount());
+        nodes.put("spendToday", ReportFormat.money(facts.daySpend()));
 
-        ArrayNode dayCategories = n.putArray("spendTodayByCategory");
-        for (CategoryLine line : f.dayCategories()) {
-            ObjectNode c = dayCategories.addObject();
-            c.put("category", line.name());
-            c.put("amount", ReportFormat.money(line.amount()));
-            c.put("shareOfToday", ReportFormat.percent(line.sharePercent()));
+        ArrayNode dayCategories = nodes.putArray("spendTodayByCategory");
+        for (CategoryLine line : facts.dayCategories()) {
+            ObjectNode category = dayCategories.addObject();
+            category.put("category", line.name());
+            category.put("amount", ReportFormat.money(line.amount()));
+            category.put("shareOfToday", ReportFormat.percent(line.sharePercent()));
         }
 
-        if (f.verdict() != ReportVerdict.NO_INCOME_SET) {
-            n.put("periodType", f.periodType().name().toLowerCase());
-            n.put("spentSoFarThisPeriod", ReportFormat.money(f.periodSpend()));
-            n.put("incomeBaseline", ReportFormat.money(f.baseline()));
-            n.put("incomeUpperEnd", ReportFormat.money(f.incomeMax()));
-            n.put("differenceFromBaseline", ReportFormat.money(f.variance()));
-            n.put("differenceDirection", f.variance().signum() > 0 ? "above the baseline" : "below the baseline");
-            n.put("paceAssessment", f.verdict().name());
+        if (facts.verdict() != ReportVerdict.NO_INCOME_SET) {
+            nodes.put("periodType", facts.periodType().name().toLowerCase());
+            nodes.put("spentSoFarThisPeriod", ReportFormat.money(facts.periodSpend()));
+            nodes.put("incomeBaseline", ReportFormat.money(facts.baseline()));
+            nodes.put("incomeUpperEnd", ReportFormat.money(facts.incomeMax()));
+            nodes.put("differenceFromBaseline", ReportFormat.money(facts.variance()));
+            nodes.put("differenceDirection", facts.variance().signum() > 0 ? "above the baseline" : "below the baseline");
+            nodes.put("paceAssessment", facts.verdict().name());
         }
-        if (f.comparisonAvailable() && f.rollingAvg() != null) {
-            n.put("usualDailySpendLast30Days", ReportFormat.money(f.rollingAvg()));
+        if (facts.comparisonAvailable() && facts.rollingAvg() != null) {
+            nodes.put("usualDailySpendLast30Days", ReportFormat.money(facts.rollingAvg()));
         }
-        if (f.insight() != null) {
-            n.put("keyInsight", f.insight());
+        if (facts.insight() != null) {
+            nodes.put("keyInsight", facts.insight());
         }
-        n.put("goodDay", f.goodDay());
-        return n;
+        nodes.put("goodDay", facts.goodDay());
+        return nodes;
     }
 }

@@ -52,7 +52,7 @@ public class DayGateServiceImpl implements DayGateService {
         List<LocalDate> days = pendingEntryRepository.findEntryDatesByStatus(userId, PendingStatus.PENDING)
                 .stream().sorted().toList();
 
-        List<LocalDate> pastDays = days.stream().filter(d -> d.isBefore(today)).toList();
+        List<LocalDate> pastDays = days.stream().filter(date -> date.isBefore(today)).toList();
         if (!pastDays.isEmpty()) {
             return new DayGate(true, GateReason.SUSPENDED_DAY, pastDays.get(0), pastDays.size() - 1);
         }
@@ -68,9 +68,7 @@ public class DayGateServiceImpl implements DayGateService {
         if (!gate.gated()) {
             return;
         }
-        String message = gate.reason() == GateReason.SUSPENDED_DAY
-                ? "Please confirm your pending entries for " + gate.day() + " before continuing."
-                : "It is past " + hardGateTime + ". Please confirm your pending entries before logging more.";
+        String message = gate.reason() == GateReason.SUSPENDED_DAY ? "Please confirm your pending entries for " + gate.day() + " before continuing." : "It is past " + hardGateTime + ". Please confirm your pending entries before logging more.";
         throw new DayGatedException(message);
     }
 
@@ -82,11 +80,8 @@ public class DayGateServiceImpl implements DayGateService {
         DayGate gate = evaluate(userId);
         List<PendingEntry> all = pendingEntryRepository
                 .findAllByUserIdAndStatusOrderByEntryDateAscIdAsc(userId, PendingStatus.PENDING);
-        List<PendingEntry> shown = gate.gated()
-                ? all.stream().filter(p -> p.getEntryDate().equals(gate.day())).toList()
-                : all;
+        List<PendingEntry> shown = gate.gated() ? all.stream().filter(pendingEntry -> pendingEntry.getEntryDate().equals(gate.day())).toList() : all;
 
-        return new DayStatusResponse(gate.gated(), gate.reason(), gate.day(),
-                gate.otherDaysRemaining(), hardGateTime.toString(), mapper.toResponses(shown));
+        return new DayStatusResponse(gate.gated(), gate.reason(), gate.day(), gate.otherDaysRemaining(), hardGateTime.toString(), mapper.toResponses(shown));
     }
 }

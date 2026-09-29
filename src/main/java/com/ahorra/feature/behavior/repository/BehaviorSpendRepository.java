@@ -23,9 +23,5 @@ public interface BehaviorSpendRepository extends JpaRepository<TransactionEntry,
               and t.accountId in (select a.id from Account a where a.userId = :userId and a.type = :accountType)
             group by e.entryDate, e.categoryId
             """)
-    List<CategoryDaySpend> sumSpendByDayAndCategory(@Param("userId") Long userId,
-                                                    @Param("accountType") AccountType accountType,
-                                                    @Param("direction") EntryDirection direction,
-                                                    @Param("from") LocalDate from,
-                                                    @Param("to") LocalDate to);
+    List<CategoryDaySpend> sumSpendByDayAndCategory(@Param("userId") Long userId, @Param("accountType") AccountType accountType, @Param("direction") EntryDirection direction, @Param("from") LocalDate from, @Param("to") LocalDate to);
 }

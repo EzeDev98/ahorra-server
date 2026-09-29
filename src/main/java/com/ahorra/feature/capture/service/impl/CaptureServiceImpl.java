@@ -1,13 +1,12 @@
 package com.ahorra.feature.capture.service.impl;
 
 import com.ahorra.common.exception.BadRequestException;
-import com.ahorra.feature.accounting.enums.AccountType;
 import com.ahorra.feature.accounting.dto.LookupItem;
 import com.ahorra.feature.accounting.model.Account;
 import com.ahorra.feature.accounting.model.Category;
 import com.ahorra.feature.accounting.repository.AccountRepository;
 import com.ahorra.feature.accounting.repository.CategoryRepository;
-import com.ahorra.feature.accounting.service.LookupCacheService;
+import com.ahorra.feature.accounting.service.impl.LookupCacheService;
 import com.ahorra.feature.capture.dto.CaptureRequest;
 import com.ahorra.feature.capture.dto.ParsedEntry;
 import com.ahorra.feature.capture.dto.ParsedEntryProposal;
@@ -36,6 +35,8 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
+import static com.ahorra.common.constants.GeneralConstants.*;
+
 /**
  * NOTE: deliberately NOT @Transactional. The raw entry must be committed
  * before the (slow) LLM call so it survives a failed parse, and no database
@@ -44,12 +45,6 @@ import java.util.Optional;
 @Slf4j
 @Service
 public class CaptureServiceImpl implements CaptureService {
-
-    private static final int MAX_TEXT_LENGTH = 2000;
-    private static final int MAX_CLIENT_REQUEST_ID_LENGTH = 100;
-    private static final int MAX_VENDOR_LENGTH = 255;
-    /** Must stay below the NUMERIC(15,2) ceiling of the total_amount column. */
-    private static final BigDecimal MAX_TOTAL = new BigDecimal("10000000000000");
 
     private final RawEntryRepository rawEntryRepository;
     private final PendingEntryRepository pendingEntryRepository;
@@ -204,18 +199,14 @@ public class CaptureServiceImpl implements CaptureService {
         return pending;
     }
 
-    private PendingEntryResponse toResponse(PendingEntry p) {
-        String categoryName = p.getCategoryId() == null ? null
-                : categoryRepository.findById(p.getCategoryId()).map(Category::getName).orElse(null);
-        String accountName = p.getAccountId() == null ? null
-                : accountRepository.findById(p.getAccountId()).map(Account::getName).orElse(null);
-        List<ParsedItem> items = p.getItems().stream()
+    private PendingEntryResponse toResponse(PendingEntry pendingEntry) {
+        String categoryName = pendingEntry.getCategoryId() == null ? null : categoryRepository.findById(pendingEntry.getCategoryId()).map(Category::getName).orElse(null);
+        String accountName = pendingEntry.getAccountId() == null ? null : accountRepository.findById(pendingEntry.getAccountId()).map(Account::getName).orElse(null);
+        List<ParsedItem> items = pendingEntry.getItems().stream()
                 .map(i -> new ParsedItem(i.getDescription(), i.getAmount()))
                 .toList();
 
-        return new PendingEntryResponse(
-                p.getId(), p.getRawEntryId(), p.getStatus(), p.getFlow(), p.getEntryDate(), p.getVendor(),
-                p.getCategoryId(), categoryName, p.getAccountId(), accountName, items, p.getTotalAmount());
+        return new PendingEntryResponse(pendingEntry.getId(), pendingEntry.getRawEntryId(), pendingEntry.getStatus(), pendingEntry.getFlow(), pendingEntry.getEntryDate(), pendingEntry.getVendor(), pendingEntry.getCategoryId(), categoryName, pendingEntry.getAccountId(), accountName, items, pendingEntry.getTotalAmount());
     }
 
     private String truncate(String value, int max) {

@@ -24,15 +24,13 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
+import static com.ahorra.common.constants.GeneralConstants.MAX_AMOUNT;
+import static com.ahorra.common.constants.GeneralConstants.MAX_CUSTOM_PERIOD_DAYS;
 import static com.ahorra.common.money.MoneyConfig.MONETARY_SCALE;
 
 @Slf4j
 @Service
 public class IncomeServiceImpl implements IncomeService {
-
-    /** Must stay below the NUMERIC(15,2) ceiling of the amount columns. */
-    private static final BigDecimal MAX_AMOUNT = new BigDecimal("10000000000000");
-    private static final int MAX_CUSTOM_PERIOD_DAYS = 366;
 
     private final IncomeHistoryRepository incomeHistoryRepository;
     private final UserRepository userRepository;
@@ -97,15 +95,17 @@ public class IncomeServiceImpl implements IncomeService {
     }
 
     private IncomeHistory validate(IncomeRequest request) {
-        if (request == null || request.minAmount() == null || request.maxAmount() == null
-                || request.periodType() == null) {
+
+        if (request == null || request.minAmount() == null || request.maxAmount() == null || request.periodType() == null) {
             throw new BadRequestException("Minimum, maximum and period type are required");
         }
+
         for (BigDecimal amount : List.of(request.minAmount(), request.maxAmount())) {
             if (amount.stripTrailingZeros().scale() > MONETARY_SCALE) {
                 throw new BadRequestException("Amounts must have at most " + MONETARY_SCALE + " decimal places");
             }
         }
+
         BigDecimal min = MoneyUtils.normalize(request.minAmount());
         BigDecimal max = MoneyUtils.normalize(request.maxAmount());
         if (!MoneyUtils.isPositive(min)) {
@@ -122,8 +122,7 @@ public class IncomeServiceImpl implements IncomeService {
         if (request.periodType() == PeriodType.CUSTOM) {
             periodLength = request.periodLength();
             if (periodLength == null || periodLength < 1 || periodLength > MAX_CUSTOM_PERIOD_DAYS) {
-                throw new BadRequestException(
-                        "A custom period needs a length between 1 and " + MAX_CUSTOM_PERIOD_DAYS + " days");
+                throw new BadRequestException("A custom period needs a length between 1 and " + MAX_CUSTOM_PERIOD_DAYS + " days");
             }
         }
 
@@ -154,8 +153,7 @@ public class IncomeServiceImpl implements IncomeService {
         return time.atZone(ZoneId.systemDefault()).withZoneSameInstant(zone).toLocalDate();
     }
 
-    private IncomeResponse toResponse(IncomeHistory r) {
-        return new IncomeResponse(r.getId(), r.getMinAmount(), r.getMaxAmount(), r.getPeriodType(),
-                r.getPeriodLength(), r.getEffectiveFrom(), r.getEffectiveTo());
+    private IncomeResponse toResponse(IncomeHistory incomeHistory) {
+        return new IncomeResponse(incomeHistory.getId(), incomeHistory.getMinAmount(), incomeHistory.getMaxAmount(), incomeHistory.getPeriodType(), incomeHistory.getPeriodLength(), incomeHistory.getEffectiveFrom(), incomeHistory.getEffectiveTo());
     }
 }

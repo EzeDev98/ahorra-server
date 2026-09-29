@@ -64,8 +64,7 @@ public class ActiveSessionFilter extends OncePerRequestFilter {
             Optional<User> localUser = userRepository.findByInternalAuthId(jwt.getSubject());
 
             if (localUser.isPresent() && !userSessionRepository.existsByUserIdAndIsActiveTrue(localUser.get().getId())) {
-                log.warn("Rejected {} {} - no active session for user id {}",
-                        request.getMethod(), request.getRequestURI(), localUser.get().getId());
+                log.warn("Rejected {} {} - no active session for user id {}", request.getMethod(), request.getRequestURI(), localUser.get().getId());
                 reject(response);
                 return;
             }

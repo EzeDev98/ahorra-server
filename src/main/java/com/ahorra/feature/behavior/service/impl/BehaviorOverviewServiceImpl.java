@@ -23,7 +23,7 @@ import com.ahorra.feature.behavior.repository.DetectedHabitRepository;
 import com.ahorra.feature.behavior.service.BehaviorAnalysisService;
 import com.ahorra.feature.behavior.service.BehaviorOverviewService;
 import com.ahorra.feature.day.dto.DaySpend;
-import com.ahorra.feature.day.service.DailySpendService;
+import com.ahorra.feature.day.service.impl.DailySpendService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,16 +38,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.ahorra.common.constants.GeneralConstants.*;
+
 @Service
 public class BehaviorOverviewServiceImpl implements BehaviorOverviewService {
-
-    /** Closed days needed before judgments switch on. */
-    private static final int JUDGMENT_DAYS = 30;
-    private static final int LOOKBACK_DAYS = 90;
-    private static final double UNUSUAL_Z = 2.0;
-    private static final BigDecimal HUNDRED = new BigDecimal("100");
-    private static final String ALL_SPENDING = "All spending";
-    private static final String UNCATEGORIZED = "Uncategorized";
 
     private final DailySpendService dailySpendService;
     private final LedgerEntryRepository ledgerEntryRepository;
@@ -82,8 +76,7 @@ public class BehaviorOverviewServiceImpl implements BehaviorOverviewService {
         LocalDate today = LocalDate.now(zone);
         LocalDate lastClosed = today.minusDays(1);
 
-        List<DaySpend> closed = dailySpendService.closedDaySpend(
-                userId, today.minusDays(LOOKBACK_DAYS), lastClosed);
+        List<DaySpend> closed = dailySpendService.closedDaySpend(userId, today.minusDays(LOOKBACK_DAYS), lastClosed);
         int daysObserved = closed.size();
         BehaviorMode mode = daysObserved < JUDGMENT_DAYS ? BehaviorMode.OBSERVATION : BehaviorMode.JUDGMENT;
         int daysUntil = Math.max(0, JUDGMENT_DAYS - daysObserved);
@@ -92,14 +85,14 @@ public class BehaviorOverviewServiceImpl implements BehaviorOverviewService {
         List<BehaviorBaseline> baselineRows = baselineRepository.findAllByUserId(userId);
         Map<Long, String> names = categoryNames(baselineRows);
         List<BaselineView> baselines = baselineRows.stream()
-                .sorted(Comparator.comparing((BehaviorBaseline b) -> b.getCategoryId() != BehaviorScope.TOTAL)
+                .sorted(Comparator.comparing((BehaviorBaseline baseline) -> baseline.getCategoryId() != BehaviorScope.TOTAL)
                         .thenComparing(BehaviorBaseline::getCategoryId)
                         .thenComparing(BehaviorBaseline::getWindowDays)
                         .thenComparing(BehaviorBaseline::getDayType))
-                .map(b -> new BaselineView(
-                        nameOf(b.getCategoryId(), names), b.getWindowDays(), b.getDayType(),
-                        b.getMeanAmount(), b.getStdDev(), b.getSampleDays(),
-                        b.getConfidence(), b.getComputedThrough()))
+                .map(baseline -> new BaselineView(
+                        nameOf(baseline.getCategoryId(), names), baseline.getWindowDays(), baseline.getDayType(),
+                        baseline.getMeanAmount(), baseline.getStdDev(), baseline.getSampleDays(),
+                        baseline.getConfidence(), baseline.getComputedThrough()))
                 .toList();
 
         if (mode == BehaviorMode.OBSERVATION) {
@@ -108,9 +101,9 @@ public class BehaviorOverviewServiceImpl implements BehaviorOverviewService {
         }
 
         List<HabitView> habits = habitRepository.findAllByUserIdAndStatus(userId, HabitStatus.ACTIVE).stream()
-                .sorted(Comparator.comparing(h -> h.getConfidence(), Comparator.reverseOrder()))
-                .map(h -> new HabitView(h.getDescription(), h.getFrequencyPerWeek(), h.getAvgAmount(),
-                        h.getFirstObserved(), h.getLastObserved(), h.getTrendDirection(), h.getConfidence()))
+                .sorted(Comparator.comparing(habit -> habit.getConfidence(), Comparator.reverseOrder()))
+                .map(habit -> new HabitView(habit.getDescription(), habit.getFrequencyPerWeek(), habit.getAvgAmount(),
+                        habit.getFirstObserved(), habit.getLastObserved(), habit.getTrendDirection(), habit.getConfidence()))
                 .toList();
 
         TrendView trend = analysisService.trend(userId, lastClosed)
@@ -120,29 +113,25 @@ public class BehaviorOverviewServiceImpl implements BehaviorOverviewService {
         BigDecimal zScore = null;
         Boolean unusual = null;
         Optional<BehaviorBaseline> usual = baselineRepository
-                .findByUserIdAndCategoryIdAndWindowDaysAndDayType(
-                        userId, BehaviorScope.TOTAL, 30, dayTypeOf(today));
+                .findByUserIdAndCategoryIdAndWindowDaysAndDayType(userId, BehaviorScope.TOTAL, 30, dayTypeOf(today));
         if (usual.isPresent()) {
             BigDecimal spendToday = ledgerEntryRepository
                     .sumSpendByDay(userId, AccountType.EXPENSE, EntryDirection.DEBIT, today, today)
                     .stream().map(DaySpend::spend).reduce(BigDecimal.ZERO, BigDecimal::add);
-            BehaviorBaseline b = usual.get();
-            Double z = baselineCalculator.zScore(spendToday,
-                    new Stats(b.getMeanAmount().doubleValue(), b.getStdDev().doubleValue(), b.getSampleDays()));
+            BehaviorBaseline baseline = usual.get();
+            Double z = baselineCalculator.zScore(spendToday, new Stats(baseline.getMeanAmount().doubleValue(), baseline.getStdDev().doubleValue(), baseline.getSampleDays()));
             if (z != null) {
                 zScore = BaselineCalculator.money(z);
                 unusual = z >= UNUSUAL_Z;
             }
         }
 
-        return new BehaviorOverview(today, mode, daysObserved, daysUntil, confidence,
-                baselines, habits, trend, zScore, unusual);
+        return new BehaviorOverview(today, mode, daysObserved, daysUntil, confidence, baselines, habits, trend, zScore, unusual);
     }
 
-    private TrendView toView(TrendResult r) {
-        boolean above = r.direction() == TrendDirection.WORSENING
-                && r.latestRatioPercent().compareTo(HUNDRED) >= 0;
-        return new TrendView(r.direction(), r.slopePerWeek(), r.latestRatioPercent(), r.weeksUsed(), above);
+    private TrendView toView(TrendResult result) {
+        boolean above = result.direction() == TrendDirection.WORSENING && result.latestRatioPercent().compareTo(HUNDRED) >= 0;
+        return new TrendView(result.direction(), result.slopePerWeek(), result.latestRatioPercent(), result.weeksUsed(), above);
     }
 
     /** The day type whose baseline row matches this calendar day (weekday or weekend). */

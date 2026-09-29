@@ -9,8 +9,7 @@ import java.util.Optional;
 
 public interface BehaviorBaselineRepository extends JpaRepository<BehaviorBaseline, Long> {
 
-    Optional<BehaviorBaseline> findByUserIdAndCategoryIdAndWindowDaysAndDayType(
-            Long userId, Long categoryId, int windowDays, DayType dayType);
+    Optional<BehaviorBaseline> findByUserIdAndCategoryIdAndWindowDaysAndDayType(Long userId, Long categoryId, int windowDays, DayType dayType);
 
     List<BehaviorBaseline> findAllByUserId(Long userId);
 }

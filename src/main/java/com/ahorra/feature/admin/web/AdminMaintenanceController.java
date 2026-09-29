@@ -32,10 +32,7 @@ public class AdminMaintenanceController {
     private final BehaviorAnalysisService behaviorAnalysisService;
     private final ZoneId zone;
 
-    public AdminMaintenanceController(DayCloseService dayCloseService,
-                                      DailyReportService dailyReportService,
-                                      BehaviorAnalysisService behaviorAnalysisService,
-                                      @Value("${app.timezone:Africa/Lagos}") String timezone) {
+    public AdminMaintenanceController(DayCloseService dayCloseService, DailyReportService dailyReportService, BehaviorAnalysisService behaviorAnalysisService, @Value("${app.timezone:Africa/Lagos}") String timezone) {
         this.dayCloseService = dayCloseService;
         this.dailyReportService = dailyReportService;
         this.behaviorAnalysisService = behaviorAnalysisService;

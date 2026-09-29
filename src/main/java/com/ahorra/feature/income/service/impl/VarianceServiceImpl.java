@@ -30,15 +30,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.ahorra.common.constants.GeneralConstants.HUNDRED;
+import static com.ahorra.common.constants.GeneralConstants.UNCATEGORIZED;
+
 /**
  * All figures are computed here in code from confirmed ledger data. Nothing
  * pending is counted, so an unreviewed misparse cannot distort the judgment.
  */
 @Service
 public class VarianceServiceImpl implements VarianceService {
-
-    private static final String UNCATEGORIZED = "Uncategorized";
-    private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     private final IncomeHistoryRepository incomeHistoryRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
@@ -68,11 +68,9 @@ public class VarianceServiceImpl implements VarianceService {
 
         Period period = periodFor(income, day);
 
-        List<CategorySpendRow> rows = ledgerEntryRepository.sumSpendByCategory(
-                userId, AccountType.EXPENSE, EntryDirection.DEBIT, period.start(), day);
+        List<CategorySpendRow> rows = ledgerEntryRepository.sumSpendByCategory(userId, AccountType.EXPENSE, EntryDirection.DEBIT, period.start(), day);
 
-        BigDecimal spend = rows.stream().map(CategorySpendRow::amount)
-                .reduce(BigDecimal.ZERO, MoneyUtils::add);
+        BigDecimal spend = rows.stream().map(CategorySpendRow::amount).reduce(BigDecimal.ZERO, MoneyUtils::add);
         BigDecimal baseline = income.getMinAmount();
         BigDecimal variance = MoneyUtils.subtract(spend, baseline);
         boolean over = MoneyUtils.isPositive(variance);
@@ -88,33 +86,15 @@ public class VarianceServiceImpl implements VarianceService {
                 .map(row -> toBreakdown(row, names, spend, variance, over))
                 .toList();
 
-        return new VarianceResponse(
-                day,
-                income.getPeriodType(),
-                period.start(),
-                period.end(),
-                (int) ChronoUnit.DAYS.between(period.start(), day) + 1,
-                (int) ChronoUnit.DAYS.between(period.start(), period.end()) + 1,
-                income.getMinAmount(),
-                income.getMaxAmount(),
-                baseline,
-                MoneyUtils.normalize(spend),
-                variance,
-                categories);
+        return new VarianceResponse(day, income.getPeriodType(), period.start(), period.end(), (int) ChronoUnit.DAYS.between(period.start(), day) + 1, (int) ChronoUnit.DAYS.between(period.start(), period.end()) + 1, income.getMinAmount(), income.getMaxAmount(), baseline, MoneyUtils.normalize(spend), variance, categories);
     }
 
-    private CategoryBreakdown toBreakdown(CategorySpendRow row, Map<Long, String> names,
-                                          BigDecimal totalSpend, BigDecimal variance, boolean over) {
+    private CategoryBreakdown toBreakdown(CategorySpendRow row, Map<Long, String> names, BigDecimal totalSpend, BigDecimal variance, boolean over) {
         BigDecimal amount = MoneyUtils.normalize(row.amount());
-        String name = row.categoryId() == null ? UNCATEGORIZED
-                : names.getOrDefault(row.categoryId(), UNCATEGORIZED);
+        String name = row.categoryId() == null ? UNCATEGORIZED : names.getOrDefault(row.categoryId(), UNCATEGORIZED);
 
-        BigDecimal share = MoneyUtils.isPositive(totalSpend)
-                ? MoneyUtils.divide(MoneyUtils.multiply(amount, HUNDRED), totalSpend)
-                : MoneyUtils.normalize(BigDecimal.ZERO);
-        BigDecimal attributedExcess = over && MoneyUtils.isPositive(totalSpend)
-                ? MoneyUtils.divide(MoneyUtils.multiply(variance, amount), totalSpend)
-                : MoneyUtils.normalize(BigDecimal.ZERO);
+        BigDecimal share = MoneyUtils.isPositive(totalSpend) ? MoneyUtils.divide(MoneyUtils.multiply(amount, HUNDRED), totalSpend) : MoneyUtils.normalize(BigDecimal.ZERO);
+        BigDecimal attributedExcess = over && MoneyUtils.isPositive(totalSpend) ? MoneyUtils.divide(MoneyUtils.multiply(variance, amount), totalSpend) : MoneyUtils.normalize(BigDecimal.ZERO);
 
         return new CategoryBreakdown(row.categoryId(), name, amount, share, attributedExcess);
     }

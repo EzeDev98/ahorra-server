@@ -1,6 +1,7 @@
 package com.ahorra.common.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.codec.StringCodec;
@@ -16,10 +17,9 @@ import java.util.concurrent.TimeUnit;
  * Small JSON cache over Redis. It fails open: if Redis is down or a value cannot
  * be read, the caller gets an empty result and falls back to the database.
  */
+@Slf4j
 @Component
 public class RedisJsonCache {
-
-    private static final Logger log = LoggerFactory.getLogger(RedisJsonCache.class);
 
     private final RedissonClient redisson;
     private final ObjectMapper mapper;

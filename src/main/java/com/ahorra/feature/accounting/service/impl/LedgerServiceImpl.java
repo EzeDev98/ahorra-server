@@ -57,11 +57,11 @@ public class LedgerServiceImpl implements LedgerService {
         entry.setDescription(request.description());
 
         for (PostEntryLine line : lines) {
-            TransactionEntry te = new TransactionEntry();
-            te.setAccountId(line.accountId());
-            te.setDirection(line.direction());
-            te.setAmount(MoneyUtils.normalize(line.amount()));
-            entry.addLine(te);
+            TransactionEntry transactionEntry = new TransactionEntry();
+            transactionEntry.setAccountId(line.accountId());
+            transactionEntry.setDirection(line.direction());
+            transactionEntry.setAmount(MoneyUtils.normalize(line.amount()));
+            entry.addLine(transactionEntry);
         }
 
         LedgerEntry saved = ledgerEntryRepository.save(entry);
@@ -76,9 +76,8 @@ public class LedgerServiceImpl implements LedgerService {
         if (request.entryDate() == null) {
             throw new BadRequestException("Entry date is required");
         }
-        if (request.categoryId() != null
-                && categoryRepository.findByIdAndUserId(request.categoryId(), request.userId())
-                .filter(c -> c.isActive()).isEmpty()) {
+        if (request.categoryId() != null && categoryRepository.findByIdAndUserId(request.categoryId(), request.userId())
+                .filter(category -> category.isActive()).isEmpty()) {
             throw new BadRequestException("Category not found or inactive");
         }
     }
@@ -99,21 +98,21 @@ public class LedgerServiceImpl implements LedgerService {
                 throw new BadRequestException("Every line amount must be greater than zero");
             }
         }
-        boolean hasDebit = lines.stream().anyMatch(l -> l.direction() == EntryDirection.DEBIT);
-        boolean hasCredit = lines.stream().anyMatch(l -> l.direction() == EntryDirection.CREDIT);
+        boolean hasDebit = lines.stream().anyMatch(line -> line.direction() == EntryDirection.DEBIT);
+        boolean hasCredit = lines.stream().anyMatch(line -> line.direction() == EntryDirection.CREDIT);
         if (!hasDebit || !hasCredit) {
             throw new BadRequestException("A ledger entry needs at least one debit and one credit");
         }
     }
 
     private void validateAccounts(Long userId, List<PostEntryLine> lines) {
-        Set<Long> ids = lines.stream().map(PostEntryLine::accountId).collect(Collectors.toSet());
-        Map<Long, Account> found = accountRepository.findAllByUserIdAndIdIn(userId, ids).stream()
+        Set<Long> accountIds = lines.stream().map(PostEntryLine::accountId).collect(Collectors.toSet());
+        Map<Long, Account> found = accountRepository.findAllByUserIdAndIdIn(userId, accountIds).stream()
                 .collect(Collectors.toMap(Account::getId, Function.identity()));
-        if (found.size() != ids.size()) {
+        if (found.size() != accountIds.size()) {
             throw new BadRequestException("One or more accounts do not exist for this user");
         }
-        if (found.values().stream().anyMatch(a -> !a.isActive())) {
+        if (found.values().stream().anyMatch(account -> !account.isActive())) {
             throw new BadRequestException("One or more accounts are inactive");
         }
     }
@@ -128,7 +127,7 @@ public class LedgerServiceImpl implements LedgerService {
 
     private BigDecimal sum(List<PostEntryLine> lines, EntryDirection direction) {
         return lines.stream()
-                .filter(l -> l.direction() == direction)
+                .filter(line -> line.direction() == direction)
                 .map(PostEntryLine::amount)
                 .reduce(BigDecimal.ZERO, MoneyUtils::add);
     }

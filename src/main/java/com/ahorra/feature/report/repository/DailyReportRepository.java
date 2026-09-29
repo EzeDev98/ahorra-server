@@ -15,6 +15,5 @@ public interface DailyReportRepository extends JpaRepository<DailyReport, Long> 
 
     Optional<DailyReport> findFirstByUserIdOrderByReportDateDesc(Long userId);
 
-    List<DailyReport> findByUserIdAndReportDateBetweenOrderByReportDateDesc(
-            Long userId, LocalDate from, LocalDate to);
+    List<DailyReport> findByUserIdAndReportDateBetweenOrderByReportDateDesc(Long userId, LocalDate from, LocalDate to);
 }

@@ -1,8 +1,8 @@
-package com.ahorra.feature.report.service;
+package com.ahorra.feature.report.service.impl;
 
 import com.ahorra.common.cache.RedisJsonCache;
 import com.ahorra.feature.day.dto.DaySpend;
-import com.ahorra.feature.day.service.DailySpendService;
+import com.ahorra.feature.day.service.impl.DailySpendService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -32,9 +32,7 @@ public class AmbientAggregateCache {
     private final RedisJsonCache cache;
     private final ZoneId zone;
 
-    public AmbientAggregateCache(DailySpendService dailySpendService,
-                                 RedisJsonCache cache,
-                                 @Value("${app.timezone:Africa/Lagos}") String timezone) {
+    public AmbientAggregateCache(DailySpendService dailySpendService, RedisJsonCache cache, @Value("${app.timezone:Africa/Lagos}") String timezone) {
         this.dailySpendService = dailySpendService;
         this.cache = cache;
         this.zone = ZoneId.of(timezone);
@@ -59,8 +57,7 @@ public class AmbientAggregateCache {
     }
 
     private UsualSpend compute(Long userId, LocalDate today) {
-        List<DaySpend> history = dailySpendService.closedDaySpend(
-                userId, today.minusDays(WINDOW_DAYS), today.minusDays(1));
+        List<DaySpend> history = dailySpendService.closedDaySpend(userId, today.minusDays(WINDOW_DAYS), today.minusDays(1));
         boolean available = history.size() >= WINDOW_DAYS;
         BigDecimal usual = null;
         if (available) {

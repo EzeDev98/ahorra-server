@@ -1,6 +1,5 @@
 package com.ahorra.common.util;
 
-import com.ahorra.feature.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import java.security.SecureRandom;

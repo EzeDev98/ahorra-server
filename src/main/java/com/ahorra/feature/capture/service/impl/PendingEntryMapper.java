@@ -41,11 +41,11 @@ public class PendingEntryMapper {
                 : accountRepository.findAllById(accountIds).stream()
                 .collect(Collectors.toMap(Account::getId, Account::getName));
 
-        return entries.stream().map(p -> new PendingEntryResponse(
-                p.getId(), p.getRawEntryId(), p.getStatus(), p.getFlow(), p.getEntryDate(), p.getVendor(),
-                p.getCategoryId(), p.getCategoryId() == null ? null : categoryNames.get(p.getCategoryId()),
-                p.getAccountId(), p.getAccountId() == null ? null : accountNames.get(p.getAccountId()),
-                p.getItems().stream().map(i -> new ParsedItem(i.getDescription(), i.getAmount())).toList(),
-                p.getTotalAmount())).toList();
+        return entries.stream().map(pendingEntry -> new PendingEntryResponse(
+                pendingEntry.getId(), pendingEntry.getRawEntryId(), pendingEntry.getStatus(), pendingEntry.getFlow(), pendingEntry.getEntryDate(), pendingEntry.getVendor(),
+                pendingEntry.getCategoryId(), pendingEntry.getCategoryId() == null ? null : categoryNames.get(pendingEntry.getCategoryId()),
+                pendingEntry.getAccountId(), pendingEntry.getAccountId() == null ? null : accountNames.get(pendingEntry.getAccountId()),
+                pendingEntry.getItems().stream().map(item -> new ParsedItem(item.getDescription(), item.getAmount())).toList(),
+                pendingEntry.getTotalAmount())).toList();
     }
 }

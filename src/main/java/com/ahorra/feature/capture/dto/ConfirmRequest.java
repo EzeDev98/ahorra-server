@@ -24,7 +24,6 @@ public record ConfirmRequest(
         List<ParsedItem> items
 ) {
     public boolean hasEdits() {
-        return flow != null || entryDate != null || vendor != null
-                || categoryId != null || accountId != null || items != null;
+        return flow != null || entryDate != null || vendor != null || categoryId != null || accountId != null || items != null;
     }
 }

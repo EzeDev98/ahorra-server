@@ -66,9 +66,7 @@ public record ReportFacts(
                 allowed.add(value.abs().stripTrailingZeros().toPlainString());
             }
         }
-        for (int number : new int[]{entryCount, daysElapsed, daysInPeriod, daysObserved,
-                dayCategories.size(), periodCategories.size(),
-                day.getDayOfMonth(), day.getMonthValue(), day.getYear()}) {
+        for (int number : new int[]{entryCount, daysElapsed, daysInPeriod, daysObserved, dayCategories.size(), periodCategories.size(), day.getDayOfMonth(), day.getMonthValue(), day.getYear()}) {
             allowed.add(Integer.toString(number));
         }
         return allowed;

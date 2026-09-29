@@ -1,4 +1,4 @@
-package com.ahorra.feature.report.service;
+package com.ahorra.feature.report.service.impl;
 
 import com.ahorra.feature.report.dto.ReportFacts;
 

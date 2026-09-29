@@ -1,7 +1,7 @@
 package com.ahorra.feature.report.listener;
 
 import com.ahorra.feature.day.event.DayClosedEvent;
-import com.ahorra.feature.report.service.AmbientAggregateCache;
+import com.ahorra.feature.report.service.impl.AmbientAggregateCache;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;

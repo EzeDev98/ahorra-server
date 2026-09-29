@@ -1,4 +1,4 @@
-package com.ahorra.feature.accounting.service;
+package com.ahorra.feature.accounting.service.impl;
 
 import com.ahorra.common.exception.BadRequestException;
 import com.ahorra.feature.accounting.enums.AccountType;
@@ -40,8 +40,7 @@ public class SystemAccountService {
         if (existing.isPresent()) {
             Account account = existing.get();
             if (account.getType() != type || !account.isActive()) {
-                throw new BadRequestException(
-                        "Account '" + name + "' exists but cannot be used as the default " + type + " account");
+                throw new BadRequestException("Account '" + name + "' exists but cannot be used as the default " + type + " account");
             }
             return account;
         }

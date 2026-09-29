@@ -24,6 +24,8 @@ public class HabitDetector {
     static final double MIN_WEEK_COVERAGE = 0.75;
     static final double TREND_CHANGE = 0.15;
 
+    private static final int DAYS_PER_WEEK = 7;
+
     public record HabitSignal(BigDecimal frequencyPerWeek,
                               BigDecimal avgAmount,
                               LocalDate firstObserved,
@@ -33,84 +35,91 @@ public class HabitDetector {
     }
 
     public Optional<HabitSignal> detect(List<DaySpend> series) {
-        int n = series.size();
-        if (n < MIN_DAYS) {
+        int totalDays = series.size();
+        if (totalDays < MIN_DAYS) {
             return Optional.empty();
         }
-        List<DaySpend> active = series.stream().filter(d -> d.spend().signum() > 0).toList();
-        if (active.size() < 2) {
+        List<DaySpend> activeDays = series.stream()
+                .filter(day -> day.spend().signum() > 0)
+                .toList();
+        if (activeDays.size() < 2) {
             return Optional.empty();
         }
 
         // Frequency: how often it happens.
-        double frequency = active.size() / (n / 7.0);
-        if (frequency < MIN_PER_WEEK) {
+        double frequencyPerWeek = activeDays.size() / (totalDays / (double) DAYS_PER_WEEK);
+        if (frequencyPerWeek < MIN_PER_WEEK) {
             return Optional.empty();
         }
 
         // Regularity of amount: low coefficient of variation across the active days.
-        double mean = active.stream().mapToDouble(d -> d.spend().doubleValue()).average().orElse(0);
-        if (mean <= 0) {
+        double meanActiveSpend = activeDays.stream()
+                .mapToDouble(day -> day.spend().doubleValue())
+                .average()
+                .orElse(0);
+        if (meanActiveSpend <= 0) {
             return Optional.empty();
         }
-        double sumSquares = 0;
-        for (DaySpend d : active) {
-            double diff = d.spend().doubleValue() - mean;
-            sumSquares += diff * diff;
+        double sumOfSquaredDeviations = 0;
+        for (DaySpend activeDay : activeDays) {
+            double deviation = activeDay.spend().doubleValue() - meanActiveSpend;
+            sumOfSquaredDeviations += deviation * deviation;
         }
-        double variation = Math.sqrt(sumSquares / (active.size() - 1)) / mean;
-        if (variation > MAX_VARIATION) {
+        double sampleStdDev = Math.sqrt(sumOfSquaredDeviations / (activeDays.size() - 1));
+        double coefficientOfVariation = sampleStdDev / meanActiveSpend;
+        if (coefficientOfVariation > MAX_VARIATION) {
             return Optional.empty();
         }
 
         // Regularity over time: present in most weeks, not one burst.
-        int blocks = n / 7;
-        List<DaySpend> recent = series.subList(n - blocks * 7, n);
-        double[] weekly = new double[blocks];
-        int weeksPresent = 0;
-        for (int b = 0; b < blocks; b++) {
-            boolean any = false;
-            for (int i = 0; i < 7; i++) {
-                BigDecimal spend = recent.get(b * 7 + i).spend();
-                weekly[b] += spend.doubleValue();
-                if (spend.signum() > 0) {
-                    any = true;
+        int weekCount = totalDays / DAYS_PER_WEEK;
+        List<DaySpend> daysInWholeWeeks = series.subList(totalDays - weekCount * DAYS_PER_WEEK, totalDays);
+        double[] weeklySpend = new double[weekCount];
+        int weeksWithSpend = 0;
+        for (int weekIndex = 0; weekIndex < weekCount; weekIndex++) {
+            boolean hasSpendThisWeek = false;
+            for (int dayOfWeek = 0; dayOfWeek < DAYS_PER_WEEK; dayOfWeek++) {
+                BigDecimal daySpend = daysInWholeWeeks.get(weekIndex * DAYS_PER_WEEK + dayOfWeek).spend();
+                weeklySpend[weekIndex] += daySpend.doubleValue();
+                if (daySpend.signum() > 0) {
+                    hasSpendThisWeek = true;
                 }
             }
-            if (any) {
-                weeksPresent++;
+            if (hasSpendThisWeek) {
+                weeksWithSpend++;
             }
         }
-        double coverage = weeksPresent / (double) blocks;
-        if (coverage < MIN_WEEK_COVERAGE) {
+        double weekCoverage = weeksWithSpend / (double) weekCount;
+        if (weekCoverage < MIN_WEEK_COVERAGE) {
             return Optional.empty();
         }
 
         // Direction: compare weekly spend in the first half with the second half.
-        int half = blocks / 2;
-        double first = 0;
-        double second = 0;
-        for (int i = 0; i < half; i++) {
-            first += weekly[i];
-            second += weekly[blocks - 1 - i];
+        int weeksPerHalf = weekCount / 2;
+        double firstHalfSpend = 0;
+        double secondHalfSpend = 0;
+        for (int offset = 0; offset < weeksPerHalf; offset++) {
+            firstHalfSpend += weeklySpend[offset];
+            secondHalfSpend += weeklySpend[weekCount - 1 - offset];
         }
         TrendDirection trend;
-        if (first <= 0) {
-            trend = second > 0 ? TrendDirection.WORSENING : TrendDirection.STABLE;
+        if (firstHalfSpend <= 0) {
+            trend = secondHalfSpend > 0 ? TrendDirection.WORSENING : TrendDirection.STABLE;
         } else {
-            double change = (second - first) / first;
-            trend = change > TREND_CHANGE ? TrendDirection.WORSENING
-                    : change < -TREND_CHANGE ? TrendDirection.IMPROVING
+            double relativeChange = (secondHalfSpend - firstHalfSpend) / firstHalfSpend;
+            trend = relativeChange > TREND_CHANGE ? TrendDirection.WORSENING
+                    : relativeChange < -TREND_CHANGE ? TrendDirection.IMPROVING
                     : TrendDirection.STABLE;
         }
 
-        double confidence = Math.min(n / (double) BaselineCalculator.FULL_CONFIDENCE_DAYS, 1.0) * coverage;
+        double confidence = Math.min(totalDays / (double) BaselineCalculator.FULL_CONFIDENCE_DAYS, 1.0)
+                * weekCoverage;
 
         return Optional.of(new HabitSignal(
-                BigDecimal.valueOf(frequency).setScale(2, RoundingMode.HALF_UP),
-                BaselineCalculator.money(mean),
-                active.get(0).day(),
-                active.get(active.size() - 1).day(),
+                BigDecimal.valueOf(frequencyPerWeek).setScale(2, RoundingMode.HALF_UP),
+                BaselineCalculator.money(meanActiveSpend),
+                activeDays.get(0).day(),
+                activeDays.get(activeDays.size() - 1).day(),
                 trend,
                 BigDecimal.valueOf(confidence).setScale(3, RoundingMode.HALF_UP)));
     }

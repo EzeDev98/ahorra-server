@@ -13,36 +13,36 @@ public class BaselineCalculator {
     /** Days of history at which confidence reaches 1.0. */
     public static final int FULL_CONFIDENCE_DAYS = 30;
 
-    public record Stats(double mean, double stdDev, int n) {
+    public record Stats(double mean, double stdDev, int sampleSize) {
     }
 
     /** Zero-spend days must be passed in as zeros; they are real data points. */
     public Stats stats(List<BigDecimal> values) {
-        int n = values.size();
-        if (n == 0) {
+        int sampleSize = values.size();
+        if (sampleSize == 0) {
             return new Stats(0, 0, 0);
         }
         double mean = values.stream().mapToDouble(BigDecimal::doubleValue).average().orElse(0);
-        if (n < 2) {
-            return new Stats(mean, 0, n);
+        if (sampleSize < 2) {
+            return new Stats(mean, 0, sampleSize);
         }
         double sumSquares = 0;
-        for (BigDecimal v : values) {
-            double d = v.doubleValue() - mean;
-            sumSquares += d * d;
+        for (BigDecimal value : values) {
+            double deviation = value.doubleValue() - mean;
+            sumSquares += deviation * deviation;
         }
-        return new Stats(mean, Math.sqrt(sumSquares / (n - 1)), n);
+        return new Stats(mean, Math.sqrt(sumSquares / (sampleSize - 1)), sampleSize);
     }
 
     /** confidence = min(days_observed / 30, 1). */
     public BigDecimal confidence(int daysObserved) {
-        double c = Math.min(daysObserved / (double) FULL_CONFIDENCE_DAYS, 1.0);
-        return BigDecimal.valueOf(c).setScale(3, RoundingMode.HALF_UP);
+        double confidenceRatio = Math.min(daysObserved / (double) FULL_CONFIDENCE_DAYS, 1.0);
+        return BigDecimal.valueOf(confidenceRatio).setScale(3, RoundingMode.HALF_UP);
     }
 
     /** Null when there is too little data or no spread to measure against. */
     public Double zScore(BigDecimal amount, Stats stats) {
-        if (stats.n() < 2 || stats.stdDev() <= 0) {
+        if (stats.sampleSize() < 2 || stats.stdDev() <= 0) {
             return null;
         }
         return (amount.doubleValue() - stats.mean()) / stats.stdDev();

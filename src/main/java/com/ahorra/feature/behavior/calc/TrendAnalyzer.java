@@ -27,29 +27,37 @@ public class TrendAnalyzer {
     }
 
     public Optional<TrendResult> analyze(List<Double> weeklyRatioPercent) {
-        int n = weeklyRatioPercent.size();
-        if (n < MIN_WEEKS) {
+        int weekCount = weeklyRatioPercent.size();
+        if (weekCount < MIN_WEEKS) {
             return Optional.empty();
         }
-        double xMean = (n - 1) / 2.0;
-        double yMean = weeklyRatioPercent.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-        double num = 0;
-        double den = 0;
-        for (int i = 0; i < n; i++) {
-            double dx = i - xMean;
-            num += dx * (weeklyRatioPercent.get(i) - yMean);
-            den += dx * dx;
-        }
-        double slope = den == 0 ? 0 : num / den;
 
-        TrendDirection direction = slope > SLOPE_THRESHOLD ? TrendDirection.WORSENING
-                : slope < -SLOPE_THRESHOLD ? TrendDirection.IMPROVING
+        double meanWeekIndex = (weekCount - 1) / 2.0;
+        double meanRatioPercent = weeklyRatioPercent.stream()
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0);
+
+        double sumOfCrossDeviations = 0;
+        double sumOfSquaredWeekDeviations = 0;
+        for (int weekIndex = 0; weekIndex < weekCount; weekIndex++) {
+            double weekIndexDeviation = weekIndex - meanWeekIndex;
+            double ratioDeviation = weeklyRatioPercent.get(weekIndex) - meanRatioPercent;
+            sumOfCrossDeviations += weekIndexDeviation * ratioDeviation;
+            sumOfSquaredWeekDeviations += weekIndexDeviation * weekIndexDeviation;
+        }
+        double slopePerWeek = sumOfSquaredWeekDeviations == 0 ? 0 : sumOfCrossDeviations / sumOfSquaredWeekDeviations;
+
+        TrendDirection direction = slopePerWeek > SLOPE_THRESHOLD ? TrendDirection.WORSENING
+                : slopePerWeek < -SLOPE_THRESHOLD ? TrendDirection.IMPROVING
                 : TrendDirection.STABLE;
+
+        double latestRatioPercent = weeklyRatioPercent.get(weekCount - 1);
 
         return Optional.of(new TrendResult(
                 direction,
-                BaselineCalculator.money(slope),
-                BaselineCalculator.money(weeklyRatioPercent.get(n - 1)),
-                n));
+                BaselineCalculator.money(slopePerWeek),
+                BaselineCalculator.money(latestRatioPercent),
+                weekCount));
     }
 }

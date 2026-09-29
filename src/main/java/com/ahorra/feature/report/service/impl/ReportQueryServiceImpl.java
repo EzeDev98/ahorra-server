@@ -26,8 +26,7 @@ public class ReportQueryServiceImpl implements ReportQueryService {
     private final DailyReportRepository dailyReportRepository;
     private final ZoneId zone;
 
-    public ReportQueryServiceImpl(DailyReportRepository dailyReportRepository,
-                                  @Value("${app.timezone:Africa/Lagos}") String timezone) {
+    public ReportQueryServiceImpl(DailyReportRepository dailyReportRepository, @Value("${app.timezone:Africa/Lagos}") String timezone) {
         this.dailyReportRepository = dailyReportRepository;
         this.zone = ZoneId.of(timezone);
     }
@@ -63,33 +62,32 @@ public class ReportQueryServiceImpl implements ReportQueryService {
         return dailyReportRepository
                 .findByUserIdAndReportDateBetweenOrderByReportDateDesc(userId, start, end)
                 .stream()
-                .map(r -> new DailyReportSummary(
-                        r.getReportDate(), r.getKind(), r.getEntryCount(),
-                        r.getDaySpend(), r.getVerdict(), r.getSummaryText()))
+                .map(report -> new DailyReportSummary(
+                        report.getReportDate(), report.getKind(), report.getEntryCount(),
+                        report.getDaySpend(), report.getVerdict(), report.getSummaryText()))
                 .toList();
     }
 
-    private DailyReportResponse toResponse(DailyReport r) {
+    private DailyReportResponse toResponse(DailyReport report) {
         return new DailyReportResponse(
-                r.getReportDate(), r.getKind(), r.getSummaryText(),
-                r.getPeriodType(), r.getPeriodStart(), r.getPeriodEnd(),
-                r.getEntryCount(), r.getDaySpend(), r.getBaseline(), r.getIncomeMax(),
-                r.getPeriodSpend(), r.getVariance(), r.getRollingAvgDailySpend(),
-                r.getDaysObserved(), r.getVerdict(), r.getInsightText(),
-                r.getNarrativeSource(),
-                lines(r, CategoryScope.DAY),
-                lines(r, CategoryScope.PERIOD));
+                report.getReportDate(), report.getKind(), report.getSummaryText(),
+                report.getPeriodType(), report.getPeriodStart(), report.getPeriodEnd(),
+                report.getEntryCount(), report.getDaySpend(), report.getBaseline(), report.getIncomeMax(),
+                report.getPeriodSpend(), report.getVariance(), report.getRollingAvgDailySpend(),
+                report.getDaysObserved(), report.getVerdict(), report.getInsightText(),
+                report.getNarrativeSource(),
+                lines(report, CategoryScope.DAY),
+                lines(report, CategoryScope.PERIOD));
     }
 
     private List<CategoryLine> lines(DailyReport report, CategoryScope scope) {
         return report.getCategories().stream()
-                .filter(c -> c.getScope() == scope)
+                .filter(category -> category.getScope() == scope)
                 .map(this::toLine)
                 .toList();
     }
 
-    private CategoryLine toLine(DailyReportCategory c) {
-        return new CategoryLine(c.getCategoryName(), c.getAmount(),
-                c.getSharePercent(), c.getAttributedExcess());
+    private CategoryLine toLine(DailyReportCategory category) {
+        return new CategoryLine(category.getCategoryName(), category.getAmount(), category.getSharePercent(), category.getAttributedExcess());
     }
 }

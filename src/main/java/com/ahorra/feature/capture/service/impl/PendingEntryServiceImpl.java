@@ -11,7 +11,7 @@ import com.ahorra.feature.accounting.model.LedgerEntry;
 import com.ahorra.feature.accounting.repository.AccountRepository;
 import com.ahorra.feature.accounting.repository.CategoryRepository;
 import com.ahorra.feature.accounting.service.LedgerService;
-import com.ahorra.feature.accounting.service.SystemAccountService;
+import com.ahorra.feature.accounting.service.impl.SystemAccountService;
 import com.ahorra.feature.capture.dto.ConfirmRequest;
 import com.ahorra.feature.capture.dto.ParsedItem;
 import com.ahorra.feature.capture.dto.PendingEntryResponse;

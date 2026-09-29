@@ -12,10 +12,8 @@ import com.ahorra.feature.income.dto.VarianceResponse;
 import com.ahorra.feature.income.service.VarianceService;
 import com.ahorra.feature.report.dto.AmbientResponse;
 import com.ahorra.feature.report.enums.ReportVerdict;
-import com.ahorra.feature.report.service.AmbientAggregateCache;
-import com.ahorra.feature.report.service.AmbientAggregateCache.UsualSpend;
+import com.ahorra.feature.report.service.impl.AmbientAggregateCache.UsualSpend;
 import com.ahorra.feature.report.service.AmbientService;
-import com.ahorra.feature.report.service.VerdictCalculator;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -64,13 +62,11 @@ public class AmbientServiceImpl implements AmbientService {
                 .map(DaySpend::spend)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal pending = pendingEntryRepository.sumTotalByStatusAndFlowAndDay(
-                userId, PendingStatus.PENDING, FlowDirection.EXPENSE, today);
+        BigDecimal pending = pendingEntryRepository.sumTotalByStatusAndFlowAndDay(userId, PendingStatus.PENDING, FlowDirection.EXPENSE, today);
         if (pending == null) {
             pending = BigDecimal.ZERO;
         }
-        long pendingCount = pendingEntryRepository
-                .countByUserIdAndStatusAndEntryDate(userId, PendingStatus.PENDING, today);
+        long pendingCount = pendingEntryRepository.countByUserIdAndStatusAndEntryDate(userId, PendingStatus.PENDING, today);
 
         BigDecimal provisional = confirmed.add(pending);
 
@@ -82,17 +78,14 @@ public class AmbientServiceImpl implements AmbientService {
         BigDecimal periodVariance = null;
         BigDecimal periodBaseline = null;
         try {
-            VarianceResponse v = varianceService.variance(userId, today);
-            verdict = verdictCalculator.verdict(v);
-            periodVariance = v.variance();
-            periodBaseline = v.baseline();
+            VarianceResponse variance = varianceService.variance(userId, today);
+            verdict = verdictCalculator.verdict(variance);
+            periodVariance = variance.variance();
+            periodBaseline = variance.baseline();
         } catch (EntityNotFoundException e) {
             verdict = ReportVerdict.NO_INCOME_SET;
         }
 
-        return new AmbientResponse(
-                today, confirmed, pending, (int) pendingCount, provisional,
-                pendingCount > 0, usual.usualDailySpend(), usual.daysObserved(),
-                usual.comparisonAvailable(), verdict, periodVariance, periodBaseline);
+        return new AmbientResponse(today, confirmed, pending, (int) pendingCount, provisional, pendingCount > 0, usual.usualDailySpend(), usual.daysObserved(), usual.comparisonAvailable(), verdict, periodVariance, periodBaseline);
     }
 }

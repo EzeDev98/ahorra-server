@@ -47,8 +47,7 @@ public class DayCloseServiceImpl implements DayCloseService {
     @Override
     @Transactional
     public void catchUp(Long userId, LocalDate through) {
-        Set<LocalDate> pendingDays = new HashSet<>(
-                pendingEntryRepository.findEntryDatesByStatus(userId, PendingStatus.PENDING));
+        Set<LocalDate> pendingDays = new HashSet<>(pendingEntryRepository.findEntryDatesByStatus(userId, PendingStatus.PENDING));
 
         // 1. Suspended days whose backlog is now cleared close retroactively.
         for (DayState suspended : dayStateRepository.findAllByUserIdAndStatus(userId, DayStatus.SUSPENDED)) {
@@ -63,7 +62,7 @@ public class DayCloseServiceImpl implements DayCloseService {
 
         // 2. Evaluate every day that has no row yet, oldest first.
         LocalDate next = dayStateRepository.findTopByUserIdOrderByDayDateDesc(userId)
-                .map(s -> s.getDayDate().plusDays(1))
+                .map(dayState -> dayState.getDayDate().plusDays(1))
                 .orElseGet(() -> firstDay(userId));
 
         for (LocalDate day = next; !day.isAfter(through); day = day.plusDays(1)) {

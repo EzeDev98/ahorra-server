@@ -15,6 +15,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.ahorra.common.constants.GeneralConstants.*;
 import static com.ahorra.common.money.MoneyConfig.MONETARY_SCALE;
 
 /**
@@ -24,12 +25,7 @@ import static com.ahorra.common.money.MoneyConfig.MONETARY_SCALE;
 @Component
 public class ParsedEntryValidator {
 
-    private static final int MAX_ITEMS = 50;
-    private static final int MAX_DESCRIPTION_LENGTH = 255;
-    private static final BigDecimal MAX_AMOUNT = new BigDecimal("1000000000000");
-
-    public ParsedEntryProposal validate(Long rawEntryId, ParsedEntry parsed, LocalDate today,
-                                        List<LookupItem> accounts, List<LookupItem> categories) {
+    public ParsedEntryProposal validate(Long rawEntryId, ParsedEntry parsed, LocalDate today, List<LookupItem> accounts, List<LookupItem> categories) {
         FlowDirection flow = parseFlow(parsed.flow());
         List<ParsedItem> items = validateItems(parsed.items());
         BigDecimal total = items.stream().map(ParsedItem::amount).reduce(BigDecimal.ZERO, MoneyUtils::add);
