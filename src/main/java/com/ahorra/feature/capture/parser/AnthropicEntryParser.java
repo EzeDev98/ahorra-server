@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -30,6 +31,7 @@ import static com.ahorra.common.constants.GeneralConstants.TOOL_NAME;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.parser.provider", havingValue = "anthropic", matchIfMissing = true)
 public class AnthropicEntryParser implements EntryParser {
 
     private final ObjectMapper objectMapper;
