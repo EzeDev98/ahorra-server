@@ -31,6 +31,25 @@ import static com.ahorra.common.constants.GeneralConstants.TOOL_NAME;
 @ConditionalOnProperty(name = "app.parser.provider", havingValue = "groq")
 public class GroqEntryParser implements EntryParser {
 
+    /** Groq checks tool arguments against the schema and rejects null for a string; the model sends null for fields the note did not state. */
+    private static ObjectNode allowNullOptionals(ObjectNode schema) {
+        JsonNode required = schema.path("required");
+        ObjectNode props = (ObjectNode) schema.get("properties");
+        props.fieldNames().forEachRemaining(name -> {
+            boolean isRequired = false;
+            for (JsonNode r : required) {
+                if (r.asText().equals(name)) {
+                    isRequired = true;
+                }
+            }
+            JsonNode type = props.get(name).get("type");
+            if (!isRequired && type != null && type.isTextual() && type.asText().equals("string")) {
+                ((ObjectNode) props.get(name)).putArray("type").add("string").add("null");
+            }
+        });
+        return schema;
+    }
+
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
     private final String apiKey;
@@ -97,7 +116,7 @@ public class GroqEntryParser implements EntryParser {
         ObjectNode function = objectMapper.createObjectNode();
         function.put("name", TOOL_NAME);
         function.put("description", EntryParserSupport.TOOL_DESCRIPTION);
-        function.set("parameters", EntryParserSupport.entrySchema(objectMapper));
+        function.set("parameters", allowNullOptionals(EntryParserSupport.entrySchema(objectMapper)));
         body.putArray("tools").addObject()
                 .put("type", "function")
                 .set("function", function);

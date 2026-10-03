@@ -75,6 +75,13 @@ public class GeneralConstants {
 
     public static final int MAX_INSIGHT_LENGTH = 500;
 
+    public static final int MAX_OBLIGATIONS = 50;
+
+    public static final int MAX_PUSH_DEVICES = 10;
+
+    /** The largest voice recording accepted, about two minutes of browser audio. The client stops at one minute. */
+    public static final int MAX_VOICE_BYTES = 2 * 1024 * 1024;
+
     public static final int PIN_LENGTH = 6;
 
     public static final int MAX_PIN_ATTEMPTS = 5;

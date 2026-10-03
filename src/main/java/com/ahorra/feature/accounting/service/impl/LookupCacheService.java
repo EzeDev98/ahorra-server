@@ -30,13 +30,16 @@ public class LookupCacheService {
 
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
+    private final DefaultCategoryService defaultCategories;
     private final RedisJsonCache cache;
 
     public LookupCacheService(AccountRepository accountRepository,
                               CategoryRepository categoryRepository,
+                              DefaultCategoryService defaultCategories,
                               RedisJsonCache cache) {
         this.accountRepository = accountRepository;
         this.categoryRepository = categoryRepository;
+        this.defaultCategories = defaultCategories;
         this.cache = cache;
     }
 
@@ -66,6 +69,7 @@ public class LookupCacheService {
     }
 
     private LookupSnapshot load(Long userId) {
+        defaultCategories.ensureDefaults(userId);
         List<LookupItem> accounts = accountRepository.findAllByUserIdAndActiveTrue(userId).stream()
                 .filter(a -> a.getType() == AccountType.ASSET)
                 .map(this::toItem)

@@ -26,6 +26,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -47,6 +48,10 @@ public class WebSecurityConfig {
 
     @Value("${internal-auth.issuer-url}")
     private String tokenIssuerUrl;
+
+    // Extra browser origins allowed to call the API, for example the client's own domain (comma separated, optional).
+    @Value("${app.cors.extra-origins:}")
+    private List<String> extraOrigins;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
@@ -141,10 +146,12 @@ public class WebSecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(List.of(
+        List<String> origins = new ArrayList<>(List.of(
                 "https://*.onrender.com",
                 "http://localhost:*"
         ));
+        extraOrigins.stream().map(String::trim).filter(origin -> !origin.isEmpty()).forEach(origins::add);
+        configuration.setAllowedOriginPatterns(origins);
 
         configuration.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
