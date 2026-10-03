@@ -4,6 +4,7 @@ import com.ahorra.feature.auth.dto.request.LoginRequest;
 
 import com.ahorra.client.dto.response.LoginResponse;
 import com.ahorra.feature.auth.service.AuthService;
+import com.ahorra.feature.pin.service.PinService;
 import com.ahorra.feature.session.service.SessionManagementService;
 import com.ahorra.feature.user.model.User;
 import com.ahorra.feature.user.service.impl.CurrentUserService;
@@ -26,11 +27,14 @@ public class AuthController {
     private final JwtDecoder jwtDecoder;
     private final CurrentUserService currentUserService;
     private final SessionManagementService sessionManagementService;
+    private final PinService pinService;
 
     public AuthController(AuthService authService, SessionManagementService sessionManagementService,
+                          PinService pinService,
                           JwtDecoder jwtDecoder, CurrentUserService currentUserService) {
         this.authService = authService;
         this.sessionManagementService = sessionManagementService;
+        this.pinService = pinService;
         this.jwtDecoder = jwtDecoder;
         this.currentUserService = currentUserService;
     }
@@ -57,6 +61,7 @@ public class AuthController {
             Jwt jwt = jwtDecoder.decode(loginResponse.getAccessToken());
             User user = currentUserService.resolveUser(jwt);
             sessionManagementService.createSession(user.getId(), user.getPhoneNumber(), loginResponse.getAccessToken());
+            pinService.markFreshLogin(user.getId());
         } catch (Exception ex) {
             log.warn("Could not resolve local user for new login; local session not opened", ex);
         }

@@ -71,6 +71,20 @@ public class GlobalExceptionHandler {
         return ProblemDetail.forStatusAndDetail(status, ex.getMessage());
     }
 
+    @ExceptionHandler(IncorrectPinException.class)
+    public ProblemDetail handleIncorrectPin(IncorrectPinException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setProperty("attemptsRemaining", ex.getAttemptsRemaining());
+        return problem;
+    }
+
+    @ExceptionHandler(PinLockedException.class)
+    public ProblemDetail handlePinLocked(PinLockedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+        problem.setProperty("retryAfterSeconds", ex.getRetryAfterSeconds());
+        return problem;
+    }
+
     @ExceptionHandler(InternalAuthCallException.class)
     public ProblemDetail handleInternalAuthCallException(InternalAuthCallException ex) {
         return ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());

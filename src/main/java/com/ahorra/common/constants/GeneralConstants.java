@@ -75,6 +75,14 @@ public class GeneralConstants {
 
     public static final int MAX_INSIGHT_LENGTH = 500;
 
+    public static final int PIN_LENGTH = 6;
+
+    public static final int MAX_PIN_ATTEMPTS = 5;
+
+    public static final int PIN_LOCK_MINUTES = 15;
+
+    public static final int PIN_RESET_WINDOW_MINUTES = 10;
+
     private GeneralConstants() {
         throw new UnsupportedOperationException("General constant class and cannot be instantiated");
     }
