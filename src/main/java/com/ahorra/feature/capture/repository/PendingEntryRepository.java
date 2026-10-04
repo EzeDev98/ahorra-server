@@ -18,7 +18,7 @@ import java.util.Optional;
 public interface PendingEntryRepository extends JpaRepository<PendingEntry, Long> {
 
     @EntityGraph(attributePaths = "items")
-    Optional<PendingEntry> findByRawEntryId(Long rawEntryId);
+    List<PendingEntry> findAllByRawEntryIdOrderByIdAsc(Long rawEntryId);
 
     @EntityGraph(attributePaths = "items")
     Optional<PendingEntry> findByIdAndUserId(Long id, Long userId);

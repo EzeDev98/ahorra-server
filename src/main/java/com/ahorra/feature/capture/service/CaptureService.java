@@ -3,6 +3,8 @@ package com.ahorra.feature.capture.service;
 import com.ahorra.feature.capture.dto.CaptureRequest;
 import com.ahorra.feature.capture.dto.PendingEntryResponse;
 
+import java.util.List;
+
 public interface CaptureService {
 
     /**
@@ -10,5 +12,5 @@ public interface CaptureService {
      * entry awaiting confirmation. Does NOT post anything to the ledger.
      * Retrying with the same clientRequestId returns the existing entry.
      */
-    PendingEntryResponse capture(Long userId, CaptureRequest request);
+    List<PendingEntryResponse> capture(Long userId, CaptureRequest request);
 }

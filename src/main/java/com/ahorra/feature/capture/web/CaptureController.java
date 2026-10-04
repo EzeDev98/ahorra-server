@@ -10,6 +10,8 @@ import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @AllArgsConstructor
 @RestController
 @RequestMapping("${app.title}")
@@ -20,7 +22,7 @@ public class CaptureController {
     private final CurrentUserService currentUserService;
 
     @PostMapping("/entries/capture")
-    public ResponseEntity<PendingEntryResponse> capture(@Valid @RequestBody CaptureRequest request) {
+    public ResponseEntity<List<PendingEntryResponse>> capture(@Valid @RequestBody CaptureRequest request) {
         Long userId = currentUserService.getCurrentUser().getId();
         return ResponseEntity.ok(captureService.capture(userId, request));
     }

@@ -38,7 +38,7 @@ public class PendingEntry {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "raw_entry_id", nullable = false, unique = true)
+    @Column(name = "raw_entry_id", nullable = false)
     private Long rawEntryId;
 
     @Enumerated(EnumType.STRING)

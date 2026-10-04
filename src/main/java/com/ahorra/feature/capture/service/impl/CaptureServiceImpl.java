@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,8 +77,11 @@ public class CaptureServiceImpl implements CaptureService {
         this.zone = ZoneId.of(timezone);
     }
 
+    /** One note can describe several separate events; each becomes its own pending entry. */
+    private static final int MAX_ENTRIES_PER_NOTE = 10;
+
     @Override
-    public PendingEntryResponse capture(Long userId, CaptureRequest request) {
+    public List<PendingEntryResponse> capture(Long userId, CaptureRequest request) {
         String text = request == null || request.text() == null ? "" : request.text().trim();
         if (text.isEmpty()) {
             throw new BadRequestException("Entry text is required");
@@ -93,10 +97,10 @@ public class CaptureServiceImpl implements CaptureService {
         // 1. Persist exactly what the user said (or find it again on a retry).
         RawEntry raw = findOrCreateRaw(userId, request.source(), text, clientRequestId);
 
-        // 2. Idempotent replay: this input already produced a pending entry.
-        Optional<PendingEntry> existing = pendingEntryRepository.findByRawEntryId(raw.getId());
-        if (existing.isPresent()) {
-            return toResponse(existing.get());
+        // 2. Idempotent replay: this input already produced its pending entries.
+        List<PendingEntry> existing = pendingEntryRepository.findAllByRawEntryIdOrderByIdAsc(raw.getId());
+        if (!existing.isEmpty()) {
+            return existing.stream().map(this::toResponse).toList();
         }
 
         // A retry of a previously failed parse starts from a clean status.
@@ -112,26 +116,28 @@ public class CaptureServiceImpl implements CaptureService {
             List<LookupItem> accounts = lookupCache.captureAccounts(userId);
             List<LookupItem> categories = lookupCache.categories(userId);
 
-            ParsedEntry parsed = entryParser.parse(new ParseContext(
+            List<ParsedEntry> parsedEntries = entryParser.parse(new ParseContext(
                     raw.getRawText(),
                     today,
                     accounts.stream().map(LookupItem::name).toList(),
                     categories.stream().map(LookupItem::name).toList()));
-
-            ParsedEntryProposal proposal = validator.validate(raw.getId(), parsed, today, accounts, categories);
-            PendingEntry pending = buildPending(userId, proposal);
-
-            PendingEntry saved;
-            try {
-                saved = pendingEntryRepository.save(pending);
-            } catch (DataIntegrityViolationException ex) {
-                // A concurrent duplicate request won the race for this raw entry.
-                return toResponse(pendingEntryRepository.findByRawEntryId(raw.getId()).orElseThrow(() -> ex));
+            if (parsedEntries == null || parsedEntries.isEmpty()) {
+                throw new BadRequestException("No amounts were found in that entry");
+            }
+            if (parsedEntries.size() > MAX_ENTRIES_PER_NOTE) {
+                throw new BadRequestException("Too many separate entries in one note (max " + MAX_ENTRIES_PER_NOTE + ")");
             }
 
+            List<PendingEntry> staged = new ArrayList<>();
+            for (ParsedEntry parsed : parsedEntries) {
+                ParsedEntryProposal proposal = validator.validate(raw.getId(), parsed, today, accounts, categories);
+                staged.add(buildPending(userId, proposal));
+            }
+
+            List<PendingEntry> saved = pendingEntryRepository.saveAll(staged);
             raw.setStatus(CaptureStatus.PARSED);
             rawEntryRepository.save(raw);
-            return toResponse(saved);
+            return saved.stream().map(this::toResponse).toList();
         } catch (RuntimeException ex) {
             markFailed(raw, ex.getMessage());
             throw ex;

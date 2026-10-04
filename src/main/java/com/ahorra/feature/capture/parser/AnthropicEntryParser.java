@@ -58,7 +58,7 @@ public class AnthropicEntryParser implements EntryParser {
     }
 
     @Override
-    public ParsedEntry parse(ParseContext context) {
+    public List<ParsedEntry> parse(ParseContext context) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new InternalServerErrorException("Entry parsing is not configured", null);
         }
@@ -82,7 +82,7 @@ public class AnthropicEntryParser implements EntryParser {
             JsonNode root = objectMapper.readTree(response.getBody());
             for (JsonNode block : root.path("content")) {
                 if ("tool_use".equals(block.path("type").asText())) {
-                    return toParsedEntry(block.path("input"));
+                    return List.of(toParsedEntry(block.path("input")));
                 }
             }
         } catch (Exception ex) {

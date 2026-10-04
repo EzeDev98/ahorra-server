@@ -2,6 +2,7 @@ package com.ahorra.feature.capture.parser;
 
 import com.ahorra.common.exception.InternalServerErrorException;
 import com.ahorra.feature.capture.dto.ParsedEntry;
+import java.util.List;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -51,7 +52,7 @@ public class GeminiEntryParser implements EntryParser {
     }
 
     @Override
-    public ParsedEntry parse(ParseContext context) {
+    public List<ParsedEntry> parse(ParseContext context) {
         EntryParserSupport.requireKey(apiKey);
 
         HttpHeaders headers = new HttpHeaders();
@@ -71,7 +72,7 @@ public class GeminiEntryParser implements EntryParser {
             for (JsonNode part : root.path("candidates").path(0).path("content").path("parts")) {
                 JsonNode args = part.path("functionCall").path("args");
                 if (args.isObject()) {
-                    return EntryParserSupport.toParsedEntry(args);
+                    return EntryListSupport.toParsedEntries(args);
                 }
             }
         } catch (Exception ex) {
@@ -96,7 +97,7 @@ public class GeminiEntryParser implements EntryParser {
         declaration.put("name", TOOL_NAME);
         declaration.put("description", EntryParserSupport.TOOL_DESCRIPTION);
         // Gemini names its schema types in capitals (OBJECT, STRING, NUMBER, ARRAY).
-        declaration.set("parameters", EntryParserSupport.entrySchema(objectMapper, name -> name.toUpperCase(Locale.ROOT)));
+        declaration.set("parameters", EntryListSupport.entriesSchema(objectMapper, name -> name.toUpperCase(Locale.ROOT)));
         body.putArray("tools").addObject()
                 .putArray("functionDeclarations").add(declaration);
 

@@ -2,6 +2,7 @@ package com.ahorra.feature.capture.parser;
 
 import com.ahorra.common.exception.InternalServerErrorException;
 import com.ahorra.feature.capture.dto.ParsedEntry;
+import java.util.List;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -50,7 +51,7 @@ public class MistralEntryParser implements EntryParser {
     }
 
     @Override
-    public ParsedEntry parse(ParseContext context) {
+    public List<ParsedEntry> parse(ParseContext context) {
         EntryParserSupport.requireKey(apiKey);
 
         HttpHeaders headers = new HttpHeaders();
@@ -71,7 +72,7 @@ public class MistralEntryParser implements EntryParser {
                     .path("tool_calls").path(0).path("function").path("arguments");
             JsonNode input = EntryParserSupport.readArguments(objectMapper, arguments);
             if (input != null) {
-                return EntryParserSupport.toParsedEntry(input);
+                return EntryListSupport.toParsedEntries(input);
             }
         } catch (Exception ex) {
             log.error("Could not read Mistral response", ex);
@@ -97,7 +98,7 @@ public class MistralEntryParser implements EntryParser {
         ObjectNode function = objectMapper.createObjectNode();
         function.put("name", TOOL_NAME);
         function.put("description", EntryParserSupport.TOOL_DESCRIPTION);
-        function.set("parameters", EntryParserSupport.entrySchema(objectMapper));
+        function.set("parameters", EntryListSupport.entriesSchema(objectMapper));
         body.putArray("tools").addObject()
                 .put("type", "function")
                 .set("function", function);
