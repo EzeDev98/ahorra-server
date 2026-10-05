@@ -1,6 +1,7 @@
 package com.ahorra.feature.push.web;
 
 import com.ahorra.feature.push.dto.PushSubscriptionRequest;
+import com.ahorra.feature.push.dto.ReminderSetting;
 import com.ahorra.feature.push.service.PushSubscriptionService;
 import com.ahorra.feature.user.service.impl.CurrentUserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +30,19 @@ public class PushSubscriptionController {
     public ResponseEntity<Void> unsubscribe(@RequestParam String endpoint) {
         Long userId = currentUserService.getCurrentUser().getId();
         pushSubscriptionService.unsubscribe(userId, endpoint);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/push/reminder")
+    public ResponseEntity<ReminderSetting> getReminder() {
+        Long userId = currentUserService.getCurrentUser().getId();
+        return ResponseEntity.ok(new ReminderSetting(pushSubscriptionService.isReminderEnabled(userId)));
+    }
+
+    @PutMapping("/push/reminder")
+    public ResponseEntity<Void> setReminder(@RequestBody ReminderSetting request) {
+        Long userId = currentUserService.getCurrentUser().getId();
+        pushSubscriptionService.setReminderEnabled(userId, request.enabled());
         return ResponseEntity.noContent().build();
     }
 }

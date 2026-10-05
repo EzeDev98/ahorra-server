@@ -22,7 +22,7 @@ public class AuthServiceImpl implements AuthService {
     public LoginResponse login(String username, String password) {
         InternalAuthApiResponse<InternalAuthLoginResponse> response = authClient.login(new LoginRequest(username, password));
         InternalAuthLoginResponse data = response.getData();
-        return new LoginResponse(data.getUserId(), data.getUsername(), data.getMessage(), data.isMfaRequired(), data.getAccessToken(), data.getRefreshToken(), data.getExpiresIn(), data.getRefreshExpiresIn());
+        return new LoginResponse(data.getUserId(), data.getUsername(), data.getMessage(), data.isMfaRequired(), data.getAccessToken(), data.getRefreshToken(), data.getExpiresIn(), data.getRefreshExpiresIn(), null);
     }
 
     @Override

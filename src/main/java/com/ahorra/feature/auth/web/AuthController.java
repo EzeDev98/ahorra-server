@@ -60,6 +60,7 @@ public class AuthController {
         try {
             Jwt jwt = jwtDecoder.decode(loginResponse.getAccessToken());
             User user = currentUserService.resolveUser(jwt);
+            loginResponse.setFirstName(user.getFirstName());
             sessionManagementService.createSession(user.getId(), user.getPhoneNumber(), loginResponse.getAccessToken());
             pinService.markFreshLogin(user.getId());
         } catch (Exception ex) {

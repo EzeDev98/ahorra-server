@@ -2,15 +2,15 @@ package com.ahorra.feature.push.job;
 
 import com.ahorra.feature.capture.enums.PendingStatus;
 import com.ahorra.feature.capture.repository.PendingEntryRepository;
-import com.ahorra.feature.push.repository.PushSubscriptionRepository;
 import com.ahorra.feature.push.service.impl.PushSender;
+import com.ahorra.feature.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * The one daily nudge. Each evening, before the hard gate and the day close, every user with a registered device and
+ * The one daily nudge. Each evening, before the hard gate and the day close, every user with the reminder on and
  * entries still waiting for confirmation gets a single notification. Users with nothing waiting get nothing. The words
  * describe; they never judge. One user failing never stops the rest.
  */
@@ -22,7 +22,7 @@ public class EveningNudgeJob {
     static final String TITLE = "Ahorra";
     static final String BODY = "You have entries waiting to be confirmed before the day closes.";
 
-    private final PushSubscriptionRepository pushSubscriptionRepository;
+    private final UserRepository userRepository;
     private final PendingEntryRepository pendingEntryRepository;
     private final PushSender pushSender;
 
@@ -32,7 +32,7 @@ public class EveningNudgeJob {
             return;
         }
         int notified = 0;
-        for (Long userId : pushSubscriptionRepository.findSubscribedUserIds()) {
+        for (Long userId : userRepository.findReminderEnabledUserIds()) {
             try {
                 if (pendingEntryRepository.findEntryDatesByStatus(userId, PendingStatus.PENDING).isEmpty()) {
                     continue;

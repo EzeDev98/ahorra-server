@@ -50,6 +50,9 @@ public class User {
     @Column(nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
 
+    @Column(name = "reminder_enabled", nullable = false)
+    private boolean reminderEnabled;
+
     @Column(name = "date_of_birth")
     private String dateOfBirth;
 
