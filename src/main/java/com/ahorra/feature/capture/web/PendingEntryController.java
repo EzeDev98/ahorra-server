@@ -33,4 +33,16 @@ public class PendingEntryController {
         Long userId = currentUserService.getCurrentUser().getId();
         return ResponseEntity.ok(pendingEntryService.confirm(userId, id, request));
     }
+
+    @PostMapping("/entries/pending/{id}/discard")
+    public ResponseEntity<PendingEntryResponse> discard(@PathVariable Long id) {
+        Long userId = currentUserService.getCurrentUser().getId();
+        return ResponseEntity.ok(pendingEntryService.discard(userId, id));
+    }
+
+    @PostMapping("/entries/pending/{id}/restore")
+    public ResponseEntity<PendingEntryResponse> restore(@PathVariable Long id) {
+        Long userId = currentUserService.getCurrentUser().getId();
+        return ResponseEntity.ok(pendingEntryService.restore(userId, id));
+    }
 }

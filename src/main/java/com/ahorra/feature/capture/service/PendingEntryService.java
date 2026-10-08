@@ -16,4 +16,18 @@ public interface PendingEntryService {
      * returns it unchanged.
      */
     PendingEntryResponse confirm(Long userId, Long pendingEntryId, ConfirmRequest edits);
+
+    /**
+     * Throws a pending entry away without posting anything. The row is kept (status
+     * DISCARDED) so it can be restored. Discarding an already discarded entry returns it
+     * unchanged; a confirmed entry cannot be discarded.
+     */
+    PendingEntryResponse discard(Long userId, Long pendingEntryId);
+
+    /**
+     * Undoes a discard. If the entry's day has closed in the meantime it comes back dated
+     * today, so it can never be left stranded on a closed day. Restoring an entry that is
+     * already pending returns it unchanged.
+     */
+    PendingEntryResponse restore(Long userId, Long pendingEntryId);
 }

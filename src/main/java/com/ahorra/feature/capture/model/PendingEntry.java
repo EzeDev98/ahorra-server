@@ -71,6 +71,9 @@ public class PendingEntry {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
+    @Column(name = "discarded_at")
+    private LocalDateTime discardedAt;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -87,6 +90,25 @@ public class PendingEntry {
         this.status = edited ? PendingStatus.EDITED : PendingStatus.CONFIRMED;
         this.ledgerEntryId = ledgerEntryId;
         this.confirmedAt = LocalDateTime.now();
+    }
+
+    /** Moves PENDING to DISCARDED. Nothing was ever posted, so there is nothing to reverse. */
+    public void markDiscarded() {
+        if (status != PendingStatus.PENDING) {
+            throw new IllegalStateException("Only a PENDING entry can be discarded");
+        }
+        this.status = PendingStatus.DISCARDED;
+        this.discardedAt = LocalDateTime.now();
+    }
+
+    /** Moves DISCARDED back to PENDING, on the given date (the undo of a discard). */
+    public void restore(LocalDate date) {
+        if (status != PendingStatus.DISCARDED) {
+            throw new IllegalStateException("Only a DISCARDED entry can be restored");
+        }
+        this.status = PendingStatus.PENDING;
+        this.discardedAt = null;
+        this.entryDate = date;
     }
 
     public void addItem(PendingEntryItem item) {

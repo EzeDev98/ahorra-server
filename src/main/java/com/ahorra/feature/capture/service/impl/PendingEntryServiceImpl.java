@@ -112,6 +112,49 @@ public class PendingEntryServiceImpl implements PendingEntryService {
         return mapper.toResponse(pending);
     }
 
+    @Override
+    @Transactional
+    public PendingEntryResponse discard(Long userId, Long pendingEntryId) {
+        PendingEntry pending = pendingEntryRepository.findForUpdate(pendingEntryId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Pending entry not found"));
+
+        if (pending.getStatus() == PendingStatus.DISCARDED) {
+            return mapper.toResponse(pending);
+        }
+        if (pending.getStatus() != PendingStatus.PENDING) {
+            throw new BadRequestException("This entry has already been confirmed and can no longer be discarded");
+        }
+
+        pending.markDiscarded();
+        pendingEntryRepository.save(pending);
+
+        log.info("Pending entry {} discarded for user {}", pending.getId(), userId);
+        return mapper.toResponse(pending);
+    }
+
+    @Override
+    @Transactional
+    public PendingEntryResponse restore(Long userId, Long pendingEntryId) {
+        PendingEntry pending = pendingEntryRepository.findForUpdate(pendingEntryId, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Pending entry not found"));
+
+        if (pending.getStatus() == PendingStatus.PENDING) {
+            return mapper.toResponse(pending);
+        }
+        if (pending.getStatus() != PendingStatus.DISCARDED) {
+            throw new BadRequestException("Only a discarded entry can be restored");
+        }
+
+        LocalDate date = dayCloseService.isClosed(userId, pending.getEntryDate())
+                ? LocalDate.now(zone)
+                : pending.getEntryDate();
+        pending.restore(date);
+        pendingEntryRepository.save(pending);
+
+        log.info("Pending entry {} restored for user {}", pending.getId(), userId);
+        return mapper.toResponse(pending);
+    }
+
     private void applyEdits(Long userId, PendingEntry pending, ConfirmRequest edits) {
         if (edits.flow() != null) {
             pending.setFlow(edits.flow());
